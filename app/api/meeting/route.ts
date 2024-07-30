@@ -19,29 +19,51 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { meetingNumber, date, meetingTypeId, previousMeetingId, minutes } =
-      body;
+    const { meetingTypeId, date } = body;
 
-    if (!meetingNumber || !date || !meetingTypeId) {
+    if (typeof meetingTypeId !== "string" || !date) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    }
+
+    const meetingType = await prisma.meetingType.findUnique({
+      where: { id: meetingTypeId },
+    });
+
+    if (!meetingType) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Invalid meeting type" },
         { status: 400 },
       );
     }
 
+    const latestMeeting = await prisma.meeting.findFirst({
+      where: { meetingTypeId },
+      orderBy: { meetingNumber: "desc" },
+    });
+
+    let newMeetingNumber: number;
+    if (latestMeeting?.meetingNumber) {
+      newMeetingNumber =
+        parseInt(latestMeeting.meetingNumber.toString(), 10) + 1;
+    } else {
+      newMeetingNumber = 1;
+    }
+
+    const formattedId = `${meetingType.name.charAt(0)}${newMeetingNumber}`;
+
     const newMeeting = await prisma.meeting.create({
       data: {
-        meetingNumber,
-        date: new Date(date),
         meetingTypeId,
-        previousMeetingId,
-        minutes,
+        meetingNumber: newMeetingNumber,
+        formattedId,
+        date: new Date(date),
       },
       include: { meetingType: true },
     });
+
     return NextResponse.json(newMeeting, { status: 201 });
   } catch (error) {
-    console.error("[POST_MEETING] - Failed to fetch meetings", error);
+    console.error("[POST_MEETING] - Failed to create meeting:", error);
     return NextResponse.json(
       { error: "Failed to create meeting" },
       { status: 500 },

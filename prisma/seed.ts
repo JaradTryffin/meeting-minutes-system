@@ -36,7 +36,8 @@ async function main() {
   // Create Meetings
   const meeting1 = await prisma.meeting.create({
     data: {
-      meetingNumber: "M001",
+      meetingNumber: 1,
+      formattedId: "M1",
       date: new Date("2023-07-01"),
       meetingTypeId: mancoType.id,
       minutes: "Discussion about Q3 goals",
@@ -44,7 +45,8 @@ async function main() {
   });
   const meeting2 = await prisma.meeting.create({
     data: {
-      meetingNumber: "F001",
+      meetingNumber: 1,
+      formattedId: "F1",
       date: new Date("2023-07-15"),
       meetingTypeId: financeType.id,
       minutes: "Budget review for Q3",
@@ -90,10 +92,10 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });

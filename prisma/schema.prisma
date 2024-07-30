@@ -18,7 +18,8 @@ model MeetingType {
 
 model Meeting {
   id                String              @id @default(uuid())
-  meetingNumber     String              @unique
+  meetingNumber     Int
+  formattedId       String              @unique
   date              DateTime
   meetingTypeId     String
   meetingType       MeetingType         @relation(fields: [meetingTypeId], references: [id])
