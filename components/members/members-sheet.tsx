@@ -17,6 +17,10 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ToastAction } from "@/components/ui/toast";
+import axios from "axios";
+import { useRouter } from "next/navigation";
+import apiClient from "@/lib/apiClient";
 
 const FormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -26,6 +30,7 @@ const FormSchema = z.object({
 export function MemberSheet() {
   const [open, setOpen] = useState<boolean>(false);
   const { toast } = useToast();
+  const router = useRouter();
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -34,15 +39,24 @@ export function MemberSheet() {
     },
   });
 
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-    toast({
-      title: "You submitted the following values",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-    });
+  async function onSubmit(data: z.infer<typeof FormSchema>) {
+    try {
+      await apiClient.post("/persons", data).then(() => {
+        toast({
+          description: `Successfully added ${data.name}`,
+        });
+        router.refresh();
+        form.reset();
+      });
+    } catch (error) {
+      toast({
+        title: "Uh oh! Something went wrong.s",
+        variant: "destructive",
+        description: "There was a problem with your request",
+        action: <ToastAction altText="Try Again">Try again</ToastAction>,
+      });
+    }
+
     setOpen(false);
   }
 

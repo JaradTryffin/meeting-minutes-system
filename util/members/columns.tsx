@@ -83,8 +83,7 @@ export const memberColumns: ColumnDef<Person>[] = [
               Copy payment ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>View Member</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
+            <DropdownMenuItem>Update Member</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       );
