@@ -15,12 +15,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ToastAction } from "@/components/ui/toast";
-import axios from "axios";
 import { useRouter } from "next/navigation";
 import apiClient from "@/lib/apiClient";
+import { useMemberSheet } from "@/hooks/use-sheet";
+import { useMemberEdit } from "@/hooks/use-member-edit";
+import { useEffect } from "react";
 
 const FormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -28,7 +29,9 @@ const FormSchema = z.object({
 });
 
 export function MemberSheet() {
-  const [open, setOpen] = useState<boolean>(false);
+  const memberSheet = useMemberSheet();
+  const memberEdit = useMemberEdit();
+
   const { toast } = useToast();
   const router = useRouter();
   const form = useForm<z.infer<typeof FormSchema>>({
@@ -39,15 +42,34 @@ export function MemberSheet() {
     },
   });
 
+  useEffect(() => {
+    if (memberEdit.member.id) {
+      form.setValue("name", memberEdit.member.name);
+      form.setValue("email", memberEdit.member.email);
+    }
+  }, [memberEdit.member]);
+
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     try {
-      await apiClient.post("/persons", data).then(() => {
-        toast({
-          description: `Successfully added ${data.name}`,
+      if (memberEdit.member.id) {
+        await apiClient
+          .put(`/persons/${memberEdit.member.id}`, { name:data.name,email:data.email })
+          .then((res) => {
+            toast({
+              description: `${res.data.name} Updated`,
+            });
+            router.refresh();
+            form.reset();
+          });
+      } else {
+        await apiClient.post("/persons", data).then(() => {
+          toast({
+            description: `Successfully added ${data.name}`,
+          });
+          router.refresh();
+          form.reset();
         });
-        router.refresh();
-        form.reset();
-      });
+      }
     } catch (error) {
       toast({
         title: "Uh oh! Something went wrong.s",
@@ -57,16 +79,22 @@ export function MemberSheet() {
       });
     }
 
-    setOpen(false);
+    memberSheet.onClose();
   }
+
+  const handleClose = () => {
+    memberSheet.onClose();
+    memberEdit.reset();
+    form.reset();
+  };
 
   return (
     <SheetForm
       triggerButtonText="Add Member"
       sheetTitle="Add Member"
       sheetDescription="Add a member to team"
-      open={open}
-      setOpen={setOpen}
+      open={memberSheet.isOpen}
+      setOpen={(open) => (open ? memberSheet.onOpen() : handleClose())}
     >
       <Form {...form}>
         <form
@@ -102,7 +130,9 @@ export function MemberSheet() {
             )}
             name="email"
           />
-          <Button type="submit">Submit</Button>
+          <Button type="submit">
+            {memberEdit.member.id ? "Update" : "Save"}
+          </Button>
         </form>
       </Form>
     </SheetForm>

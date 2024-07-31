@@ -13,6 +13,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { useMemberSheet } from "@/hooks/use-sheet";
+import apiClient from "@/lib/apiClient";
+import { useMemberEdit } from "@/hooks/use-member-edit";
 
 // Function to get a random avatar image
 const getRandomAvatar = () => {
@@ -29,6 +32,13 @@ const getInitials = (name: string) => {
     .toUpperCase()
     .slice(0, 2);
 };
+const memberEdit = useMemberEdit.getState();
+
+async function getMemberById(id: string) {
+  await apiClient.get(`/persons/${id}`).then((res) => {
+    memberEdit.setMember(res.data);
+  });
+}
 
 export const memberColumns: ColumnDef<Person>[] = [
   {
@@ -67,6 +77,7 @@ export const memberColumns: ColumnDef<Person>[] = [
     id: "actions",
     cell: ({ row }) => {
       const member = row.original;
+      const memberSheet = useMemberSheet.getState();
 
       return (
         <DropdownMenu>
@@ -83,7 +94,15 @@ export const memberColumns: ColumnDef<Person>[] = [
               Copy payment ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Update Member</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={async () => {
+                await getMemberById(member.id).then(() => {
+                  memberSheet.onOpen();
+                });
+              }}
+            >
+              Update Member
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       );

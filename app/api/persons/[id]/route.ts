@@ -33,12 +33,17 @@ export async function PUT(
 ) {
   try {
     const body = await request.json();
+    console.log(body)
     const { name, email } = body;
+
+    console.log("name",name)
+    console.log("email",email)
 
     const updatedPerson = await prisma.person.update({
       where: { id: params.id },
       data: { name, email },
     });
+
 
     return NextResponse.json(updatedPerson);
   } catch (error) {
