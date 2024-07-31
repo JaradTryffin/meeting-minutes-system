@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 const FormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -31,11 +32,9 @@ export function MemberSheet() {
       name: "",
       email: "",
     },
-    mode: "onChange",
   });
 
   function onSubmit(data: z.infer<typeof FormSchema>) {
-    console.log("data", data);
     toast({
       title: "You submitted the following values",
       description: (
@@ -44,14 +43,7 @@ export function MemberSheet() {
         </pre>
       ),
     });
-  }
-  function handleSubmit() {
-    form.handleSubmit((data) => {
-      onSubmit(data);
-    })();
-    if (!form.formState.isValid) {
-      setOpen(true);
-    }
+    setOpen(false);
   }
 
   return (
@@ -59,20 +51,13 @@ export function MemberSheet() {
       triggerButtonText="Add Member"
       sheetTitle="Add Member"
       sheetDescription="Add a member to team"
-      footerButtonText="Save"
-      formId="sheet-form"
       open={open}
       setOpen={setOpen}
-      onSubmit={handleSubmit}
     >
       <Form {...form}>
         <form
           className="w-full space-y-6"
-          id="sheet-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSubmit();
-          }}
+          onSubmit={form.handleSubmit(onSubmit)}
         >
           <FormField
             control={form.control}
@@ -103,6 +88,7 @@ export function MemberSheet() {
             )}
             name="email"
           />
+          <Button type="submit">Submit</Button>
         </form>
       </Form>
     </SheetForm>
