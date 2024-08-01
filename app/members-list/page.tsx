@@ -4,7 +4,7 @@ import { memberColumns } from "@/util/members/columns";
 import prisma from "@/lib/prisma";
 import { MemberSheet } from "@/components/members/members-sheet";
 
-export default async function Home() {
+export default async function MemberListPage() {
   const members = await prisma.person.findMany();
 
   return (
