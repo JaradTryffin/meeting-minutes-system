@@ -19,7 +19,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { meetingTypeId, date } = body;
+    console.log("body",body)
+    const { meetingTypeId, date,...rest } = body;
+    console.log("meetingTypeId",meetingTypeId)
 
     if (typeof meetingTypeId !== "string" || !date) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
         meetingNumber: newMeetingNumber,
         formattedId,
         date: new Date(date),
+        ...rest
       },
       include: { meetingType: true },
     });

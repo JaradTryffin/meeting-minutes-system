@@ -28,7 +28,7 @@ export function ReusableDialog({
       <DialogTrigger asChild>
         <Button className="cursor-pointer">{buttonText}</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

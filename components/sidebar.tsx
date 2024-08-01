@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { User, LucideIcon, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReusableDialog } from "@/components/ui/ReusableDialog";
+import { NewMeeting } from "@/components/meeting/new-meeting";
 
 interface MenuItem {
   name: string;
@@ -44,16 +45,12 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, menuItems }) => {
         </div>
       </div>
       <div className="flex flex-col gap-4">
-        {/*<button className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-10 px-4 bg-[#1980e6] text-slate-50 text-sm font-bold leading-normal tracking-[0.015em]">*/}
-        {/*  <span className="truncate">New Meeting</span>*/}
-        {/*</button>*/}
-        {/*<Button className='bg-[#1980e6] cursor-pointer'>New Meeting</Button>*/}
         <ReusableDialog
           buttonText="New Meeting"
           title="Create new meeting."
           description="create meeting for relevant team"
         >
-          Jarad
+          <NewMeeting />
         </ReusableDialog>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3 px-3 py-2">
