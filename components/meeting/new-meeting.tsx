@@ -36,11 +36,14 @@ import { format } from "date-fns";
 import { ToastAction } from "@/components/ui/toast";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { useMeetingModal } from "@/hooks/use-sheet";
 
 const FormSchema = z.object({
-  meetingTypeId: z.string({
-    required_error: "Please select a meeting type",
-  }),
+  meetingTypeId: z
+    .string({
+      required_error: "Please select a meeting type",
+    })
+    .min(2),
   date: z.date({
     required_error: "A Date is required",
   }),
@@ -51,6 +54,7 @@ export function NewMeeting() {
   const { toast } = useToast();
   const router = useRouter();
   const [meetingTypes, setMeetingTypes] = useState<MeetingType[]>([]);
+  const meetingModal = useMeetingModal();
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -65,13 +69,14 @@ export function NewMeeting() {
         .post("/meeting", {
           meetingTypeId: data.meetingTypeId,
           date: data.date,
-          minutes:data.minutes
+          minutes: data.minutes,
         })
         .then((res) => {
           toast({
             description: `Successfully created meeting`,
           });
           router.refresh();
+          meetingModal.onClose();
         });
     } catch (error) {
       toast({

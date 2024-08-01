@@ -15,6 +15,8 @@ interface ReusableDialogProps {
   title: string;
   description: string;
   children: ReactNode;
+  open: boolean;
+  setOpen: (open: boolean) => void;
 }
 
 export function ReusableDialog({
@@ -22,9 +24,11 @@ export function ReusableDialog({
   title,
   description,
   children,
+  open,
+  setOpen,
 }: ReusableDialogProps) {
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="cursor-pointer">{buttonText}</Button>
       </DialogTrigger>

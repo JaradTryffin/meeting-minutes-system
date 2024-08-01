@@ -12,4 +12,8 @@ export const useMemberSheet = create<useSheetStore>((set) => ({
   onClose: () => set({ isOpen: false }),
 }));
 
-
+export const useMeetingModal = create<useSheetStore>((set) => ({
+  isOpen: false,
+  onOpen: () => set({ isOpen: true }),
+  onClose: () => set({ isOpen: false }),
+}));

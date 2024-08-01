@@ -6,6 +6,7 @@ import { User, LucideIcon, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReusableDialog } from "@/components/ui/ReusableDialog";
 import { NewMeeting } from "@/components/meeting/new-meeting";
+import { useMeetingModal } from "@/hooks/use-sheet";
 
 interface MenuItem {
   name: string;
@@ -20,6 +21,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ companyName, menuItems }) => {
   const pathname = usePathname();
+  const meetingModel = useMeetingModal();
 
   return (
     <div className="flex h-full min-h-[700px] flex-col justify-between bg-slate-50 p-4">
@@ -49,6 +51,10 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, menuItems }) => {
           buttonText="New Meeting"
           title="Create new meeting."
           description="create meeting for relevant team"
+          open={meetingModel.isOpen}
+          setOpen={(open) =>
+            open ? meetingModel.onOpen() : meetingModel.onClose()
+          }
         >
           <NewMeeting />
         </ReusableDialog>
