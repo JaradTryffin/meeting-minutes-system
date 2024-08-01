@@ -91,7 +91,7 @@ export const memberColumns: ColumnDef<Person>[] = [
             <DropdownMenuItem
               onClick={() => navigator.clipboard.writeText(member.id)}
             >
-              Copy payment ID
+              Copy Member Id
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
