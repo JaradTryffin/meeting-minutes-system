@@ -9,6 +9,7 @@ import {
 } from "@/util/meetingItem/column";
 import { DataTable } from "@/components/data-table";
 import { MeetingItemSheet } from "@/components/meeting-item/meeting-item-sheet";
+import { useRefreshHook } from "@/hooks/use-refresh";
 
 export default function MeetingItemPerMeetingPage({
   params,
@@ -16,7 +17,7 @@ export default function MeetingItemPerMeetingPage({
   params: { id: string };
 }) {
   const [data, setData] = useState<MeetingData | undefined>(undefined);
-
+  const refreshHook = useRefreshHook();
   const fetchData = useCallback(async () => {
     try {
       const response = await apiClient.get<MeetingData>(
@@ -31,7 +32,7 @@ export default function MeetingItemPerMeetingPage({
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [refreshHook]);
 
   function transformToMeetingItemColumns(
     meetingData: MeetingData | undefined,
@@ -57,7 +58,7 @@ export default function MeetingItemPerMeetingPage({
 
   const handleItemAdded = useCallback(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, refreshHook]);
 
   const MeetingItemSheetWrapper = () => (
     <MeetingItemSheet

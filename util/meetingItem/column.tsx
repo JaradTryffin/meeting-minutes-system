@@ -22,6 +22,7 @@ import { useState } from "react";
 import apiClient from "@/lib/apiClient";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
+import { useRefreshHook } from "@/hooks/use-refresh";
 
 export interface MeetingItemColumn {
   description: string;
@@ -116,6 +117,8 @@ export const meetingItemColumn: ColumnDef<MeetingItemColumn>[] = [
       const router = useRouter();
       // eslint-disable-next-line react-hooks/rules-of-hooks
       const { toast } = useToast();
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const refreshHook = useRefreshHook();
       const handleStatusChange = async (newStatus: string) => {
         setStatus(newStatus);
 
@@ -132,6 +135,7 @@ export const meetingItemColumn: ColumnDef<MeetingItemColumn>[] = [
             variant: "success",
           });
           router.refresh();
+          refreshHook.onRefresh();
         } catch (error) {
           console.error("Failed to update status:", error);
         }
