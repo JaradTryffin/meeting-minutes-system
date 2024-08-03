@@ -74,6 +74,7 @@ export function NewMeeting() {
         .then((res) => {
           toast({
             description: `Successfully created meeting`,
+            variant: "success",
           });
           router.refresh();
           meetingModal.onClose();

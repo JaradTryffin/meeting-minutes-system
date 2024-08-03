@@ -53,7 +53,10 @@ export function MemberSheet() {
     try {
       if (memberEdit.member.id) {
         await apiClient
-          .put(`/persons/${memberEdit.member.id}`, { name:data.name,email:data.email })
+          .put(`/persons/${memberEdit.member.id}`, {
+            name: data.name,
+            email: data.email,
+          })
           .then((res) => {
             toast({
               description: `${res.data.name} Updated`,
@@ -65,6 +68,7 @@ export function MemberSheet() {
         await apiClient.post("/persons", data).then(() => {
           toast({
             description: `Successfully added ${data.name}`,
+            variant: "success",
           });
           router.refresh();
           form.reset();

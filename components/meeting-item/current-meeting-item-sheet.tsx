@@ -96,8 +96,9 @@ export function CurrentMeetingItemSheet() {
         .then((res) => {
           toast({
             description: `Created`,
+            variant: "success",
           });
-          // handleClose();
+          handleClose();
           router.refresh();
           form.reset();
         });

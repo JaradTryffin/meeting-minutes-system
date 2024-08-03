@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { useMeetingItemSheet } from "@/hooks/use-sheet";
 import { useToast } from "@/components/ui/use-toast";
-import {  useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SheetForm } from "@/components/sheet-form";
@@ -104,6 +104,7 @@ export function MeetingItemSheet({
         .then((res) => {
           toast({
             description: `Created`,
+            variant: "success",
           });
           onItemAdded();
           handleClose();
