@@ -58,7 +58,7 @@ export const meetingColumns: ColumnDef<Meeting>[] = [
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => router.push(`/meeting-items/${member.id}`)}
+              onClick={() => router.push(`/meeting-items/previous/${member.id}`)}
             >
               Review Previous Meeting
             </DropdownMenuItem>

@@ -51,7 +51,7 @@ export const meetingItemColumn: ColumnDef<MeetingItemColumn>[] = [
       } else if (row.getValue("status") === "In Progress") {
         return <Badge variant="secondary">{row.getValue("status")}</Badge>;
       } else {
-        return <Badge className="bg-green-600">{row.getValue("status")}</Badge>;
+        return <Badge>{row.getValue("status")}</Badge>;
       }
     },
   },

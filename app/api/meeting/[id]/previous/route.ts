@@ -8,7 +8,20 @@ export async function GET(
   try {
     const currentMeeting = await prisma.meeting.findUnique({
       where: { id: params.id },
-      include: { previousMeeting: true },
+      include: {
+        previousMeeting: {
+          include: {
+            meetingType: true,
+            itemStatuses: {
+              include: {
+                meeting: true,
+                responsiblePerson: true,
+                meetingItem: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!currentMeeting) {
