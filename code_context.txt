@@ -427,6 +427,368 @@ export function NewMeeting() {
   );
 }
 
+// File: components/meeting-item/meeting-item-sheet.tsx
+"use client";
+import { z } from "zod";
+import { useMeetingItemSheet } from "@/hooks/use-sheet";
+import { useToast } from "@/components/ui/use-toast";
+import { useParams, useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { SheetForm } from "@/components/sheet-form";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import apiClient from "@/lib/apiClient";
+import { useEffect, useState } from "react";
+import { Person } from "@prisma/client";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { ToastAction } from "@/components/ui/toast";
+
+interface MeetingItemSheetProps {
+  previousMeetingId: string;
+}
+
+const statuses = [
+  { label: "In Progress", value: "In Progress" },
+  { label: "Closed", value: "Closed" },
+  { label: "Open", value: "Open" },
+];
+
+const FormSchema = z.object({
+  description: z
+    .string()
+    .min(2, { message: "A Short description is required" }),
+  dueDate: z.date({
+    required_error: "A due date is required",
+  }),
+  status: z.string({
+    required_error: "A status type is required",
+  }),
+  actionRequired: z
+    .string()
+    .min(2, { message: "please state action required" }),
+  responsiblePersonId: z.string({
+    required_error: "A Person must be responsible for item.",
+  }),
+});
+
+export function MeetingItemSheet({
+  previousMeetingId,
+  onItemAdded,
+}: MeetingItemSheetProps & { onItemAdded: () => void }) {
+  const meetingItemSheet = useMeetingItemSheet();
+  const [members, setMembers] = useState<Person[]>([]);
+  const { toast } = useToast();
+  const router = useRouter();
+  const params = useParams();
+
+  console.log("previousMeetingId", previousMeetingId);
+
+  const fetchMembers = async () => {
+    await apiClient
+      .get("/persons")
+      .then((res) => setMembers(res.data))
+      .catch((error) => console.log("failed to fetch memebers"));
+  };
+
+  useEffect(() => {
+    // fetchStatus();
+    fetchMembers();
+  }, []);
+
+  const form = useForm<z.infer<typeof FormSchema>>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      description: "",
+    },
+  });
+
+  async function onSubmit(data: z.infer<typeof FormSchema>) {
+    try {
+      await apiClient
+        .post("meeting-items", {
+          description: data.description,
+          dueDate: data.dueDate,
+          meetingId: previousMeetingId,
+          status: data.status,
+          actionRequired: data.actionRequired,
+          responsiblePersonId: data.responsiblePersonId,
+        })
+        .then((res) => {
+          toast({
+            description: `Created`,
+          });
+          onItemAdded();
+          handleClose();
+          router.refresh();
+          form.reset();
+        });
+    } catch (error) {
+      toast({
+        title: "Uh oh! Something went wrong.s",
+        variant: "destructive",
+        description: "There was a problem with your request",
+        action: <ToastAction altText="Try Again">Try again</ToastAction>,
+      });
+    }
+  }
+
+  const handleClose = () => {
+    meetingItemSheet.onClose();
+    form.reset();
+  };
+
+  return (
+    <SheetForm
+      triggerButtonText="Add Meeting Item"
+      sheetTitle="Meeting Item"
+      sheetDescription="Add meeting Item"
+      open={meetingItemSheet.isOpen}
+      setOpen={(open) => (open ? meetingItemSheet.onOpen() : handleClose())}
+    >
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="w-full space-y-6"
+        >
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Input placeholder="Budget 2014.." {...field} />
+                </FormControl>
+                <FormDescription>
+                  Enter a short description on meeting item
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="dueDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Date of birth</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground",
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) =>
+                        date < new Date(new Date().setHours(0, 0, 0, 0))
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>Input a Due Date</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Language</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value && "text-muted-foreground",
+                        )}
+                      >
+                        {field.value
+                          ? statuses.find(
+                              (status) => status.value === field.value,
+                            )?.label
+                          : "Select Status"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search Status..." />
+                      <CommandList>
+                        <CommandEmpty>No status found.</CommandEmpty>
+                        <CommandGroup>
+                          {statuses.map((status) => (
+                            <CommandItem
+                              value={status.label}
+                              key={status.value}
+                              onSelect={() => {
+                                form.setValue("status", status.value);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  status.value === field.value
+                                    ? "opacity-100"
+                                    : "opacity-0",
+                                )}
+                              />
+                              {status.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  This is the initial status of the item.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="actionRequired"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Action</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Prepare financial forcast..."
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Enter a action that needs to take place.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="responsiblePersonId"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Responsible Member</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value && "text-muted-foreground",
+                        )}
+                      >
+                        {field.value
+                          ? members.find((member) => member.id === field.value)
+                              ?.name
+                          : "Select Member"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search Members..." />
+                      <CommandList>
+                        <CommandEmpty>No Member found.</CommandEmpty>
+                        <CommandGroup>
+                          {members.map((member) => (
+                            <CommandItem
+                              value={member.name}
+                              key={member.id}
+                              onSelect={() => {
+                                form.setValue("responsiblePersonId", member.id);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  member.id === field.value
+                                    ? "opacity-100"
+                                    : "opacity-0",
+                                )}
+                              />
+                              {member.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  This will be the member responsible for the item
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit">Submit</Button>
+        </form>
+      </Form>
+    </SheetForm>
+  );
+}
+
 // File: components/members/members-sheet.tsx
 "use client";
 
@@ -2992,7 +3354,20 @@ export async function GET(
   try {
     const currentMeeting = await prisma.meeting.findUnique({
       where: { id: params.id },
-      include: { previousMeeting: true },
+      include: {
+        previousMeeting: {
+          include: {
+            meetingType: true,
+            itemStatuses: {
+              include: {
+                meeting: true,
+                responsiblePerson: true,
+                meetingItem: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!currentMeeting) {
@@ -3179,7 +3554,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { meetingTypeId, date,...rest } = body;
+    const { meetingTypeId, date, ...rest } = body;
 
     if (typeof meetingTypeId !== "string" || !date) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
@@ -3189,6 +3564,7 @@ export async function POST(request: Request) {
       where: { id: meetingTypeId },
     });
 
+
     if (!meetingType) {
       return NextResponse.json(
         { error: "Invalid meeting type" },
@@ -3196,15 +3572,17 @@ export async function POST(request: Request) {
       );
     }
 
+    // Find the latest meeting of this type
     const latestMeeting = await prisma.meeting.findFirst({
       where: { meetingTypeId },
       orderBy: { meetingNumber: "desc" },
     });
 
+    console.log("latestMeeting",latestMeeting)
+
     let newMeetingNumber: number;
     if (latestMeeting?.meetingNumber) {
-      newMeetingNumber =
-        parseInt(latestMeeting.meetingNumber.toString(), 10) + 1;
+      newMeetingNumber = latestMeeting.meetingNumber + 1;
     } else {
       newMeetingNumber = 1;
     }
@@ -3217,10 +3595,19 @@ export async function POST(request: Request) {
         meetingNumber: newMeetingNumber,
         formattedId,
         date: new Date(date),
-        ...rest
+        previousMeetingId: latestMeeting?.id, // Set the previous meeting ID
+        ...rest,
       },
-      include: { meetingType: true },
+      include: { meetingType: true, previousMeeting: true },
     });
+
+    // If there was a previous meeting, update its nextMeeting reference
+    if (latestMeeting) {
+      await prisma.meeting.update({
+        where: { id: latestMeeting.id },
+        data: { nextMeeting: { connect: { id: newMeeting.id } } },
+      });
+    }
 
     return NextResponse.json(newMeeting, { status: 201 });
   } catch (error) {
@@ -3231,6 +3618,62 @@ export async function POST(request: Request) {
     );
   }
 }
+
+// export async function POST(request: Request) {
+//   try {
+//     const body = await request.json();
+//     const { meetingTypeId, date,...rest } = body;
+//
+//     if (typeof meetingTypeId !== "string" || !date) {
+//       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+//     }
+//
+//     const meetingType = await prisma.meetingType.findUnique({
+//       where: { id: meetingTypeId },
+//     });
+//
+//     if (!meetingType) {
+//       return NextResponse.json(
+//         { error: "Invalid meeting type" },
+//         { status: 400 },
+//       );
+//     }
+//
+//     const latestMeeting = await prisma.meeting.findFirst({
+//       where: { meetingTypeId },
+//       orderBy: { meetingNumber: "desc" },
+//     });
+//
+//     let newMeetingNumber: number;
+//     if (latestMeeting?.meetingNumber) {
+//       newMeetingNumber =
+//         parseInt(latestMeeting.meetingNumber.toString(), 10) + 1;
+//     } else {
+//       newMeetingNumber = 1;
+//     }
+//
+//     const formattedId = `${meetingType.name.charAt(0)}${newMeetingNumber}`;
+//
+//     const newMeeting = await prisma.meeting.create({
+//       data: {
+//         meetingTypeId,
+//         meetingNumber: newMeetingNumber,
+//         formattedId,
+//         date: new Date(date),
+//         ...rest
+//       },
+//       include: { meetingType: true },
+//     });
+//
+//     return NextResponse.json(newMeeting, { status: 201 });
+//   } catch (error) {
+//     console.error("[POST_MEETING] - Failed to create meeting:", error);
+//     return NextResponse.json(
+//       { error: "Failed to create meeting" },
+//       { status: 500 },
+//     );
+//   }
+// }
 
 // File: app/api/meeting-item-statuses/[id]/route.ts
 import prisma from "@/lib/prisma";
@@ -3408,13 +3851,15 @@ export async function GET(
 ) {
   try {
     const meetingItemHistory = await prisma.meetingItemStatus.findMany({
-      where: { meetingItemId: params.id },
+      where: { meetingId: params.id },
       include: {
         meeting: true,
         responsiblePerson: true,
       },
       orderBy: { meeting: { date: "asc" } },
     });
+
+    console.log("history",meetingItemHistory)
 
     if (meetingItemHistory.length === 0) {
       return NextResponse.json(
@@ -4403,27 +4848,6 @@ export default function RootLayout({
   );
 }
 
-// File: app/meeting-items/[id]/page.tsx
-import { Heading } from "@/components/Heading";
-
-export default async function MeetingItemPerMeetingPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  return (
-    <div className="m-5">
-      <div className="mb-5">
-        <Heading
-          title="Meeting Items xxxxxx"
-          description="Manage meeting items"
-        />
-      </div>
-      <h1>{params.id}</h1>
-    </div>
-  );
-}
-
 // File: app/meeting-items/page.tsx
 import { Heading } from "@/components/Heading";
 import prisma from "@/lib/prisma";
@@ -4473,6 +4897,92 @@ export default async function MeetingItemPage() {
       </div>
 
       <DataTable columns={meetingItemColumn} data={formattedData} />
+    </div>
+  );
+}
+
+// File: app/meeting-items/previous/[id]/page.tsx
+"use client";
+import { Heading } from "@/components/Heading";
+import apiClient from "@/lib/apiClient";
+import {useCallback, useEffect, useState} from "react";
+import { MeetingData } from "@/modals/meeting-items-previous.types";
+import {
+  meetingItemColumn,
+  MeetingItemColumn,
+} from "@/util/meetingItem/column";
+import { DataTable } from "@/components/data-table";
+import { MeetingItemSheet } from "@/components/meeting-item/meeting-item-sheet";
+
+export default function MeetingItemPerMeetingPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const [data, setData] = useState<MeetingData | undefined>(undefined);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const response = await apiClient.get<MeetingData>(
+          `meeting/${params.id}/previous`,
+      );
+      setData(response.data);
+    } catch (error) {
+      console.error("Failed to fetch meeting data:", error);
+      // Handle error (e.g., show error message to user)
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  function transformToMeetingItemColumns(
+    meetingData: MeetingData | undefined,
+  ): MeetingItemColumn[] {
+    if (!meetingData) return [];
+
+    return meetingData.itemStatuses.map((item) => ({
+      description: item.meetingItem.description,
+      dueDate: new Date(item.meetingItem.dueDate || ""),
+      completedDate: item.meetingItem.completedDate
+        ? new Date(item.meetingItem.completedDate)
+        : undefined,
+      status: item.status,
+      actionRequired: item.actionRequired,
+      responsiblePerson: item.responsiblePerson.name,
+      email: item.responsiblePerson.email,
+      meetingNumber: item.meeting.formattedId,
+      meetingDate: new Date(item.meeting.date),
+      meetingMinutes: item.meeting.minutes || "",
+    }));
+  }
+
+  const handleItemAdded = useCallback(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const MeetingItemSheetWrapper = () => (
+      <MeetingItemSheet
+          previousMeetingId={data?.id ? data.id : ""}
+          onItemAdded={handleItemAdded}
+      />
+  );
+
+  const transformedData = transformToMeetingItemColumns(data);
+  return (
+    <div className="m-5">
+      <div className="mb-5">
+        <Heading
+          title={`Meeting Items ${data?.formattedId ?? ""}`}
+          description="Manage meeting items"
+        />
+      </div>
+      <DataTable
+        columns={meetingItemColumn}
+        data={transformedData}
+        FormSheet={MeetingItemSheetWrapper}
+      />
     </div>
   );
 }
@@ -4747,6 +5257,23 @@ export const useMemberEdit = create<useMemberEditStore>((set) => ({
   reset: () => set({ member: { id: "", name: "", email: "" } }),
 }));
 
+// File: hooks/use-previous-id.ts
+import { create } from "zustand";
+
+interface usePreviousMeetingIdStore {
+  previousMeetingId: string;
+  setPreviousMeetingId: (data: string) => void;
+  reset: () => void;
+}
+
+export const usePreviousMeetingId = create<usePreviousMeetingIdStore>(
+  (set) => ({
+    previousMeetingId: "",
+    setPreviousMeetingId: (data) => set({ previousMeetingId: data }),
+    reset: () => set({ previousMeetingId: "" }),
+  }),
+);
+
 // File: hooks/use-sheet.ts
 import { create } from "zustand";
 
@@ -4763,6 +5290,12 @@ export const useMemberSheet = create<useSheetStore>((set) => ({
 }));
 
 export const useMeetingModal = create<useSheetStore>((set) => ({
+  isOpen: false,
+  onOpen: () => set({ isOpen: true }),
+  onClose: () => set({ isOpen: false }),
+}));
+
+export const useMeetingItemSheet = create<useSheetStore>((set) => ({
   isOpen: false,
   onOpen: () => set({ isOpen: true }),
   onClose: () => set({ isOpen: false }),

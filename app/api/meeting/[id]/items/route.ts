@@ -9,6 +9,7 @@ export async function GET(
     const meetingItems = await prisma.meetingItemStatus.findMany({
       where: { meetingId: params.id },
       include: {
+        meeting:true,
         meetingItem: true,
         responsiblePerson: true,
       },

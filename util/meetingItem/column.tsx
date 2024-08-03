@@ -49,7 +49,7 @@ export const meetingItemColumn: ColumnDef<MeetingItemColumn>[] = [
       if (row.getValue("status") === "Open") {
         return <Badge variant="destructive">{row.getValue("status")}</Badge>;
       } else if (row.getValue("status") === "In Progress") {
-        return <Badge variant="secondary">{row.getValue("status")}</Badge>;
+        return <Badge className='whitespace-nowrap' variant="secondary">{row.getValue("status")}</Badge>;
       } else {
         return <Badge>{row.getValue("status")}</Badge>;
       }
