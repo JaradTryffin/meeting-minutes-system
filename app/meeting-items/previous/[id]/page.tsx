@@ -1,7 +1,7 @@
 "use client";
 import { Heading } from "@/components/Heading";
 import apiClient from "@/lib/apiClient";
-import {useCallback, useEffect, useState} from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MeetingData } from "@/modals/meeting-items-previous.types";
 import {
   meetingItemColumn,
@@ -20,7 +20,7 @@ export default function MeetingItemPerMeetingPage({
   const fetchData = useCallback(async () => {
     try {
       const response = await apiClient.get<MeetingData>(
-          `meeting/${params.id}/previous`,
+        `meeting/${params.id}/previous`,
       );
       setData(response.data);
     } catch (error) {
@@ -45,6 +45,7 @@ export default function MeetingItemPerMeetingPage({
         ? new Date(item.meetingItem.completedDate)
         : undefined,
       status: item.status,
+      meetingItemStatus: item.id,
       actionRequired: item.actionRequired,
       responsiblePerson: item.responsiblePerson.name,
       email: item.responsiblePerson.email,
@@ -59,10 +60,10 @@ export default function MeetingItemPerMeetingPage({
   }, [fetchData]);
 
   const MeetingItemSheetWrapper = () => (
-      <MeetingItemSheet
-          previousMeetingId={data?.id ? data.id : ""}
-          onItemAdded={handleItemAdded}
-      />
+    <MeetingItemSheet
+      previousMeetingId={data?.id ? data.id : ""}
+      onItemAdded={handleItemAdded}
+    />
   );
 
   const transformedData = transformToMeetingItemColumns(data);

@@ -13,6 +13,105 @@ export const Heading: React.FC<HeadingProps> = ({ title, description }) => {
   );
 };
 
+// File: components/data-table-pagination.tsx
+"use client";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DoubleArrowLeftIcon,
+  DoubleArrowRightIcon,
+} from "@radix-ui/react-icons";
+import { Table } from "@tanstack/react-table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+
+interface DataTablePaginationProps<TData> {
+  table: Table<TData>;
+}
+
+export function DataTablePagination<TData>({
+  table,
+}: DataTablePaginationProps<TData>) {
+  return (
+    <div className="flex items-center justify-between px-2">
+      <div className="flex-1 text-sm text-muted-foreground">
+        {table.getFilteredSelectedRowModel().rows.length} of{" "}
+        {table.getFilteredRowModel().rows.length} row(s) selected.
+      </div>
+      <div className="flex items-center space-x-6 lg:space-x-8">
+        <div className="flex items-center space-x-2">
+          <p className="text-sm font-medium">Rows per page</p>
+          <Select
+            value={`${table.getState().pagination.pageSize}`}
+            onValueChange={(value) => {
+              table.setPageSize(Number(value));
+            }}
+          >
+            <SelectTrigger className="h-8 w-[70px]">
+              <SelectValue placeholder={table.getState().pagination.pageSize} />
+            </SelectTrigger>
+            <SelectContent side="top">
+              {[10, 20, 30, 40, 50].map((pageSize) => (
+                <SelectItem key={pageSize} value={`${pageSize}`}>
+                  {pageSize}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+          Page {table.getState().pagination.pageIndex + 1} of{" "}
+          {table.getPageCount()}
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            className="hidden h-8 w-8 p-0 lg:flex"
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <span className="sr-only">Go to first page</span>
+            <DoubleArrowLeftIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            className="h-8 w-8 p-0"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            <span className="sr-only">Go to previous page</span>
+            <ChevronLeftIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            className="h-8 w-8 p-0"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            <span className="sr-only">Go to next page</span>
+            <ChevronRightIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            className="hidden h-8 w-8 p-0 lg:flex"
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+          >
+            <span className="sr-only">Go to last page</span>
+            <DoubleArrowRightIcon className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // File: components/data-table.tsx
 "use client";
 
@@ -44,6 +143,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DataTablePagination } from "@/components/data-table-pagination";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -75,13 +175,13 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     onGlobalFilterChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange:setPagination,
+    onPaginationChange: setPagination,
     state: {
       sorting,
       columnFilters,
       globalFilter,
       columnVisibility,
-      pagination
+      pagination,
     },
   });
 
@@ -178,22 +278,7 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
+        <DataTablePagination table={table} />
       </div>
     </div>
   );
@@ -276,6 +361,7 @@ export function NewMeeting() {
         .then((res) => {
           toast({
             description: `Successfully created meeting`,
+            variant: "success",
           });
           router.refresh();
           meetingModal.onClose();
@@ -427,12 +513,360 @@ export function NewMeeting() {
   );
 }
 
+// File: components/meeting-item/current-meeting-item-sheet.tsx
+"use client";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import apiClient from "@/lib/apiClient";
+import { ToastAction } from "@/components/ui/toast";
+import { useParams, useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/use-toast";
+import { useEffect, useState } from "react";
+import { Person } from "@prisma/client";
+import { useCurrentMeetingItemSheet } from "@/hooks/use-sheet";
+import { SheetForm } from "@/components/sheet-form";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { statuses } from "@/constants/statuses";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+
+const FormSchema = z.object({
+  description: z
+    .string()
+    .min(2, { message: "A Short description is required" }),
+  dueDate: z.date({
+    required_error: "A due date is required",
+  }),
+  status: z.string({
+    required_error: "A status type is required",
+  }),
+  actionRequired: z
+    .string()
+    .min(2, { message: "please state action required" }),
+  responsiblePersonId: z.string({
+    required_error: "A Person must be responsible for item.",
+  }),
+});
+
+export function CurrentMeetingItemSheet() {
+  const params = useParams();
+  const currentMeetingItemSheet = useCurrentMeetingItemSheet();
+  const { toast } = useToast();
+  const router = useRouter();
+  const [members, setMembers] = useState<Person[]>([]);
+  const form = useForm<z.infer<typeof FormSchema>>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      description: "",
+    },
+  });
+
+  const fetchMembers = async () => {
+    await apiClient
+      .get("/persons")
+      .then((res) => setMembers(res.data))
+      .catch((error) => console.log("failed to fetch members"));
+  };
+
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+  async function onSubmit(data: z.infer<typeof FormSchema>) {
+    try {
+      await apiClient
+        .post("meeting-items", {
+          description: data.description,
+          dueDate: data.dueDate,
+          meetingId: params.id,
+          status: data.status,
+          actionRequired: data.actionRequired,
+          responsiblePersonId: data.responsiblePersonId,
+        })
+        .then((res) => {
+          toast({
+            description: `Created`,
+            variant: "success",
+          });
+          handleClose();
+          router.refresh();
+          form.reset();
+        });
+    } catch (error) {
+      toast({
+        title: "Uh oh! Something went wrong.s",
+        variant: "destructive",
+        description: "There was a problem with your request",
+        action: <ToastAction altText="Try Again">Try again</ToastAction>,
+      });
+    }
+  }
+
+  const handleClose = () => {
+    currentMeetingItemSheet.onClose();
+    form.reset();
+  };
+
+  return (
+    <SheetForm
+      triggerButtonText="Add Meeting Item"
+      sheetTitle="Meeting Item"
+      sheetDescription="Add meeting Item"
+      open={currentMeetingItemSheet.isOpen}
+      setOpen={(open) =>
+        open ? currentMeetingItemSheet.onOpen() : handleClose()
+      }
+    >
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="w-full space-y-6"
+        >
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Input placeholder="Budget 2014.." {...field} />
+                </FormControl>
+                <FormDescription>
+                  Enter a short description on meeting item
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="dueDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Date of birth</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground",
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) =>
+                        date < new Date(new Date().setHours(0, 0, 0, 0))
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>Input a Due Date</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Status</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value && "text-muted-foreground",
+                        )}
+                      >
+                        {field.value
+                          ? statuses.find(
+                              (status) => status.value === field.value,
+                            )?.label
+                          : "Select Status"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search Status..." />
+                      <CommandList>
+                        <CommandEmpty>No status found.</CommandEmpty>
+                        <CommandGroup>
+                          {statuses.map((status) => (
+                            <CommandItem
+                              value={status.label}
+                              key={status.value}
+                              onSelect={() => {
+                                form.setValue("status", status.value);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  status.value === field.value
+                                    ? "opacity-100"
+                                    : "opacity-0",
+                                )}
+                              />
+                              {status.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  This is the initial status of the item.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="actionRequired"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Action</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Prepare financial forcast..."
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Enter a action that needs to take place.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="responsiblePersonId"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Responsible Member</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between",
+                          !field.value && "text-muted-foreground",
+                        )}
+                      >
+                        {field.value
+                          ? members.find((member) => member.id === field.value)
+                              ?.name
+                          : "Select Member"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search Members..." />
+                      <CommandList>
+                        <CommandEmpty>No Member found.</CommandEmpty>
+                        <CommandGroup>
+                          {members.map((member) => (
+                            <CommandItem
+                              value={member.name}
+                              key={member.id}
+                              onSelect={() => {
+                                form.setValue("responsiblePersonId", member.id);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  member.id === field.value
+                                    ? "opacity-100"
+                                    : "opacity-0",
+                                )}
+                              />
+                              {member.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  This will be the member responsible for the item
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit">Submit</Button>
+        </form>
+      </Form>
+    </SheetForm>
+  );
+}
+
 // File: components/meeting-item/meeting-item-sheet.tsx
 "use client";
 import { z } from "zod";
 import { useMeetingItemSheet } from "@/hooks/use-sheet";
 import { useToast } from "@/components/ui/use-toast";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SheetForm } from "@/components/sheet-form";
@@ -468,16 +902,11 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { ToastAction } from "@/components/ui/toast";
+import { statuses } from "@/constants/statuses";
 
 interface MeetingItemSheetProps {
   previousMeetingId: string;
 }
-
-const statuses = [
-  { label: "In Progress", value: "In Progress" },
-  { label: "Closed", value: "Closed" },
-  { label: "Open", value: "Open" },
-];
 
 const FormSchema = z.object({
   description: z
@@ -505,9 +934,6 @@ export function MeetingItemSheet({
   const [members, setMembers] = useState<Person[]>([]);
   const { toast } = useToast();
   const router = useRouter();
-  const params = useParams();
-
-  console.log("previousMeetingId", previousMeetingId);
 
   const fetchMembers = async () => {
     await apiClient
@@ -542,6 +968,7 @@ export function MeetingItemSheet({
         .then((res) => {
           toast({
             description: `Created`,
+            variant: "success",
           });
           onItemAdded();
           handleClose();
@@ -641,7 +1068,7 @@ export function MeetingItemSheet({
             name="status"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Language</FormLabel>
+                <FormLabel>Status</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
@@ -845,7 +1272,10 @@ export function MemberSheet() {
     try {
       if (memberEdit.member.id) {
         await apiClient
-          .put(`/persons/${memberEdit.member.id}`, { name:data.name,email:data.email })
+          .put(`/persons/${memberEdit.member.id}`, {
+            name: data.name,
+            email: data.email,
+          })
           .then((res) => {
             toast({
               description: `${res.data.name} Updated`,
@@ -857,6 +1287,7 @@ export function MemberSheet() {
         await apiClient.post("/persons", data).then(() => {
           toast({
             description: `Successfully added ${data.name}`,
+            variant: "success",
           });
           router.refresh();
           form.reset();
@@ -2622,6 +3053,168 @@ ScrollBar.displayName = ScrollAreaPrimitive.ScrollAreaScrollbar.displayName
 
 export { ScrollArea, ScrollBar }
 
+// File: components/ui/select.tsx
+"use client"
+
+import * as React from "react"
+import * as SelectPrimitive from "@radix-ui/react-select"
+import { Check, ChevronDown, ChevronUp } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+const Select = SelectPrimitive.Root
+
+const SelectGroup = SelectPrimitive.Group
+
+const SelectValue = SelectPrimitive.Value
+
+const SelectTrigger = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
+>(({ className, children, ...props }, ref) => (
+  <SelectPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+      className
+    )}
+    {...props}
+  >
+    {children}
+    <SelectPrimitive.Icon asChild>
+      <ChevronDown className="h-4 w-4 opacity-50" />
+    </SelectPrimitive.Icon>
+  </SelectPrimitive.Trigger>
+))
+SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
+
+const SelectScrollUpButton = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.ScrollUpButton>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollUpButton>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.ScrollUpButton
+    ref={ref}
+    className={cn(
+      "flex cursor-default items-center justify-center py-1",
+      className
+    )}
+    {...props}
+  >
+    <ChevronUp className="h-4 w-4" />
+  </SelectPrimitive.ScrollUpButton>
+))
+SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName
+
+const SelectScrollDownButton = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.ScrollDownButton>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollDownButton>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.ScrollDownButton
+    ref={ref}
+    className={cn(
+      "flex cursor-default items-center justify-center py-1",
+      className
+    )}
+    {...props}
+  >
+    <ChevronDown className="h-4 w-4" />
+  </SelectPrimitive.ScrollDownButton>
+))
+SelectScrollDownButton.displayName =
+  SelectPrimitive.ScrollDownButton.displayName
+
+const SelectContent = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
+>(({ className, children, position = "popper", ...props }, ref) => (
+  <SelectPrimitive.Portal>
+    <SelectPrimitive.Content
+      ref={ref}
+      className={cn(
+        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        position === "popper" &&
+          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+        className
+      )}
+      position={position}
+      {...props}
+    >
+      <SelectScrollUpButton />
+      <SelectPrimitive.Viewport
+        className={cn(
+          "p-1",
+          position === "popper" &&
+            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+        )}
+      >
+        {children}
+      </SelectPrimitive.Viewport>
+      <SelectScrollDownButton />
+    </SelectPrimitive.Content>
+  </SelectPrimitive.Portal>
+))
+SelectContent.displayName = SelectPrimitive.Content.displayName
+
+const SelectLabel = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Label>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.Label
+    ref={ref}
+    className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", className)}
+    {...props}
+  />
+))
+SelectLabel.displayName = SelectPrimitive.Label.displayName
+
+const SelectItem = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
+>(({ className, children, ...props }, ref) => (
+  <SelectPrimitive.Item
+    ref={ref}
+    className={cn(
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className
+    )}
+    {...props}
+  >
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <SelectPrimitive.ItemIndicator>
+        <Check className="h-4 w-4" />
+      </SelectPrimitive.ItemIndicator>
+    </span>
+
+    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+  </SelectPrimitive.Item>
+))
+SelectItem.displayName = SelectPrimitive.Item.displayName
+
+const SelectSeparator = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Separator>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.Separator
+    ref={ref}
+    className={cn("-mx-1 my-1 h-px bg-muted", className)}
+    {...props}
+  />
+))
+SelectSeparator.displayName = SelectPrimitive.Separator.displayName
+
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectLabel,
+  SelectItem,
+  SelectSeparator,
+  SelectScrollUpButton,
+  SelectScrollDownButton,
+}
+
 // File: components/ui/separator.tsx
 "use client"
 
@@ -2917,16 +3510,16 @@ export {
 }
 
 // File: components/ui/toast.tsx
-"use client"
+"use client";
 
-import * as React from "react"
-import * as ToastPrimitives from "@radix-ui/react-toast"
-import { cva, type VariantProps } from "class-variance-authority"
-import { X } from "lucide-react"
+import * as React from "react";
+import * as ToastPrimitives from "@radix-ui/react-toast";
+import { cva, type VariantProps } from "class-variance-authority";
+import { X } from "lucide-react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-const ToastProvider = ToastPrimitives.Provider
+const ToastProvider = ToastPrimitives.Provider;
 
 const ToastViewport = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Viewport>,
@@ -2936,12 +3529,12 @@ const ToastViewport = React.forwardRef<
     ref={ref}
     className={cn(
       "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
-      className
+      className,
     )}
     {...props}
   />
-))
-ToastViewport.displayName = ToastPrimitives.Viewport.displayName
+));
+ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
   "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
@@ -2951,13 +3544,14 @@ const toastVariants = cva(
         default: "border bg-background text-foreground",
         destructive:
           "destructive group border-destructive bg-destructive text-destructive-foreground",
+        success: "success group border-green-600 bg-green-100 text-green-800",
       },
     },
     defaultVariants: {
       variant: "default",
     },
-  }
-)
+  },
+);
 
 const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
@@ -2970,9 +3564,9 @@ const Toast = React.forwardRef<
       className={cn(toastVariants({ variant }), className)}
       {...props}
     />
-  )
-})
-Toast.displayName = ToastPrimitives.Root.displayName
+  );
+});
+Toast.displayName = ToastPrimitives.Root.displayName;
 
 const ToastAction = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Action>,
@@ -2982,12 +3576,12 @@ const ToastAction = React.forwardRef<
     ref={ref}
     className={cn(
       "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
-      className
+      className,
     )}
     {...props}
   />
-))
-ToastAction.displayName = ToastPrimitives.Action.displayName
+));
+ToastAction.displayName = ToastPrimitives.Action.displayName;
 
 const ToastClose = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Close>,
@@ -2997,15 +3591,15 @@ const ToastClose = React.forwardRef<
     ref={ref}
     className={cn(
       "absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600",
-      className
+      className,
     )}
     toast-close=""
     {...props}
   >
     <X className="h-4 w-4" />
   </ToastPrimitives.Close>
-))
-ToastClose.displayName = ToastPrimitives.Close.displayName
+));
+ToastClose.displayName = ToastPrimitives.Close.displayName;
 
 const ToastTitle = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Title>,
@@ -3016,8 +3610,8 @@ const ToastTitle = React.forwardRef<
     className={cn("text-sm font-semibold", className)}
     {...props}
   />
-))
-ToastTitle.displayName = ToastPrimitives.Title.displayName
+));
+ToastTitle.displayName = ToastPrimitives.Title.displayName;
 
 const ToastDescription = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Description>,
@@ -3028,12 +3622,12 @@ const ToastDescription = React.forwardRef<
     className={cn("text-sm opacity-90", className)}
     {...props}
   />
-))
-ToastDescription.displayName = ToastPrimitives.Description.displayName
+));
+ToastDescription.displayName = ToastPrimitives.Description.displayName;
 
-type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>
+type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>;
 
-type ToastActionElement = React.ReactElement<typeof ToastAction>
+type ToastActionElement = React.ReactElement<typeof ToastAction>;
 
 export {
   type ToastProps,
@@ -3045,7 +3639,7 @@ export {
   ToastDescription,
   ToastClose,
   ToastAction,
-}
+};
 
 // File: components/ui/toaster.tsx
 "use client"
@@ -3292,6 +3886,7 @@ export async function GET(
     const meetingItems = await prisma.meetingItemStatus.findMany({
       where: { meetingId: params.id },
       include: {
+        meeting:true,
         meetingItem: true,
         responsiblePerson: true,
       },
@@ -4848,10 +5443,65 @@ export default function RootLayout({
   );
 }
 
+// File: app/meeting-items/current/[id]/page.tsx
+import { Heading } from "@/components/Heading";
+import prisma from "@/lib/prisma";
+import {
+  meetingItemColumn,
+  MeetingItemColumn,
+} from "@/util/meetingItem/column";
+import { DataTable } from "@/components/data-table";
+import { CurrentMeetingItemSheet } from "@/components/meeting-item/current-meeting-item-sheet";
+
+export default async function MeetingItemPerMeetingCurrentPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const meetingItems = await prisma.meetingItemStatus.findMany({
+    where: { meetingId: params.id },
+    include: {
+      meeting: true,
+      meetingItem: true,
+      responsiblePerson: true,
+    },
+  });
+
+  function transformMeetingData(rawData: any[]): MeetingItemColumn[] {
+    return rawData.map((item) => ({
+      description: item.meetingItem.description,
+      dueDate: new Date(item.meetingItem.dueDate),
+      completedDate: item.meetingItem.completedDate
+        ? new Date(item.meetingItem.completedDate)
+        : undefined,
+      status: item.status,
+      actionRequired: item.actionRequired,
+      responsiblePerson: item.responsiblePerson.name,
+      email: item.responsiblePerson.email,
+      meetingNumber: item.meeting.formattedId,
+      meetingDate: new Date(item.meeting.date),
+      meetingMinutes: item.meeting.minutes,
+    }));
+  }
+  return (
+    <div className="m-5">
+      <div className="mb-5">
+        <Heading title={`Meeting Items `} description="Manage meeting items" />
+      </div>
+
+      <DataTable
+        columns={meetingItemColumn}
+        data={transformMeetingData(meetingItems)}
+        FormSheet={CurrentMeetingItemSheet}
+      />
+    </div>
+  );
+}
+
 // File: app/meeting-items/page.tsx
 import { Heading } from "@/components/Heading";
 import prisma from "@/lib/prisma";
-import { MeetingItem } from "@prisma/client";
+
 import {
   meetingItemColumn,
   MeetingItemColumn,
@@ -4878,6 +5528,7 @@ export default async function MeetingItemPage() {
           ? new Date(item.completedDate)
           : undefined,
         status: status.status,
+        meetingItemStatus: status.id,
         actionRequired: status.actionRequired,
         responsiblePerson: responsiblePerson.name,
         email: responsiblePerson.email,
@@ -5301,3 +5952,15 @@ export const useMeetingItemSheet = create<useSheetStore>((set) => ({
   onClose: () => set({ isOpen: false }),
 }));
 
+export const useCurrentMeetingItemSheet = create<useSheetStore>((set) => ({
+  isOpen: false,
+  onOpen: () => set({ isOpen: true }),
+  onClose: () => set({ isOpen: false }),
+}));
+
+// File: constants/statuses.ts
+export const statuses = [
+    { label: "In Progress", value: "In Progress" },
+    { label: "Closed", value: "Closed" },
+    { label: "Open", value: "Open" },
+];

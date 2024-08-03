@@ -35,21 +35,58 @@ export async function GET(
   }
 }
 
-export async function PUT(
+// export async function PUT(
+//   request: Request,
+//   { params }: { params: { id: string } },
+// ) {
+//   try {
+//     const body = await request.json();
+//     const { status, actionRequired, responsiblePersonId } = body;
+//
+//     const updatedMeetingItemStatus = await prisma.meetingItemStatus.update({
+//       where: { id: params.id },
+//       data: {
+//         status,
+//         actionRequired,
+//         responsiblePersonId,
+//       },
+//       include: {
+//         meeting: true,
+//         meetingItem: true,
+//         responsiblePerson: true,
+//       },
+//     });
+//
+//     return NextResponse.json(updatedMeetingItemStatus);
+//   } catch (error) {
+//     console.error("Failed to update meeting item status:", error);
+//     return NextResponse.json(
+//       { error: "Failed to update meeting item status" },
+//       { status: 500 },
+//     );
+//   }
+// }
+
+export async function PATCH(
   request: Request,
   { params }: { params: { id: string } },
 ) {
   try {
+    console.log("I am here")
     const body = await request.json();
-    const { status, actionRequired, responsiblePersonId } = body;
+    const { status } = body;
+    console.log("body",body)
+
+    if (!status) {
+      return NextResponse.json(
+        { error: "Status is required" },
+        { status: 400 },
+      );
+    }
 
     const updatedMeetingItemStatus = await prisma.meetingItemStatus.update({
       where: { id: params.id },
-      data: {
-        status,
-        actionRequired,
-        responsiblePersonId,
-      },
+      data: { status },
       include: {
         meeting: true,
         meetingItem: true,

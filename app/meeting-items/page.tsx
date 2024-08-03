@@ -1,6 +1,6 @@
 import { Heading } from "@/components/Heading";
 import prisma from "@/lib/prisma";
-import { MeetingItem } from "@prisma/client";
+
 import {
   meetingItemColumn,
   MeetingItemColumn,
@@ -27,6 +27,7 @@ export default async function MeetingItemPage() {
           ? new Date(item.completedDate)
           : undefined,
         status: status.status,
+        meetingItemStatus: status.id,
         actionRequired: status.actionRequired,
         responsiblePerson: responsiblePerson.name,
         email: responsiblePerson.email,

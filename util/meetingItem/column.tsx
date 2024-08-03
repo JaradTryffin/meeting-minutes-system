@@ -5,11 +5,23 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
+import { statuses } from "@/constants/statuses";
+import { useState } from "react";
+import apiClient from "@/lib/apiClient";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/use-toast";
 
 export interface MeetingItemColumn {
   description: string;
@@ -22,6 +34,7 @@ export interface MeetingItemColumn {
   meetingNumber: string;
   meetingDate: Date;
   meetingMinutes: string;
+  meetingItemStatus?: string;
 }
 
 function formatDate(dateString: string | null | undefined) {
@@ -97,7 +110,33 @@ export const meetingItemColumn: ColumnDef<MeetingItemColumn>[] = [
     id: "actions",
     cell: ({ row }) => {
       const meeting = row.original;
-      console.log("meeting", meeting);
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const [status, setStatus] = useState(meeting.status);
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const router = useRouter();
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const { toast } = useToast();
+      const handleStatusChange = async (newStatus: string) => {
+        setStatus(newStatus);
+
+        try {
+          // Assuming you have an API endpoint to update the status
+          await apiClient.patch(
+            `/meeting-item-statuses/${meeting.meetingItemStatus}`,
+            {
+              status: newStatus,
+            },
+          );
+          toast({
+            description: "Successfully changed status",
+            variant: "success",
+          });
+          router.refresh();
+        } catch (error) {
+          console.error("Failed to update status:", error);
+        }
+      };
+
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -107,6 +146,23 @@ export const meetingItemColumn: ColumnDef<MeetingItemColumn>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuRadioGroup value={meeting.status}>
+                  {statuses.map((status) => (
+                    <DropdownMenuRadioItem
+                      value={status.value}
+                      key={status.label}
+                      onClick={() => handleStatusChange(status.value)}
+                    >
+                      {status.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
       );

@@ -29,6 +29,7 @@ export default async function MeetingItemPerMeetingCurrentPage({
         ? new Date(item.meetingItem.completedDate)
         : undefined,
       status: item.status,
+      meetingItemStatus: item.id,
       actionRequired: item.actionRequired,
       responsiblePerson: item.responsiblePerson.name,
       email: item.responsiblePerson.email,
