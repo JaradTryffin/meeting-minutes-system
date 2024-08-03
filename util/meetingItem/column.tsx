@@ -2,6 +2,14 @@
 
 import { ColumnDef } from "@tanstack/table-core";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { MoreHorizontal } from "lucide-react";
 
 export interface MeetingItemColumn {
   description: string;
@@ -49,7 +57,11 @@ export const meetingItemColumn: ColumnDef<MeetingItemColumn>[] = [
       if (row.getValue("status") === "Open") {
         return <Badge variant="destructive">{row.getValue("status")}</Badge>;
       } else if (row.getValue("status") === "In Progress") {
-        return <Badge className='whitespace-nowrap' variant="secondary">{row.getValue("status")}</Badge>;
+        return (
+          <Badge className="whitespace-nowrap" variant="secondary">
+            {row.getValue("status")}
+          </Badge>
+        );
       } else {
         return <Badge>{row.getValue("status")}</Badge>;
       }
@@ -80,5 +92,24 @@ export const meetingItemColumn: ColumnDef<MeetingItemColumn>[] = [
   {
     accessorKey: "meetingMinutes",
     header: "Meeting Minutes",
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const meeting = row.original;
+      console.log("meeting", meeting);
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    },
   },
 ];
