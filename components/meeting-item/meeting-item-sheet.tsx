@@ -28,7 +28,7 @@ import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import apiClient from "@/lib/apiClient";
 import { useEffect, useState } from "react";
-import { Person, StatusType } from "@prisma/client";
+import { Person } from "@prisma/client";
 import {
   Command,
   CommandEmpty,
@@ -37,9 +37,17 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Simulate } from "react-dom/test-utils";
-import error = Simulate.error;
 import { ToastAction } from "@/components/ui/toast";
+
+interface MeetingItemSheetProps {
+  previousMeetingId: string;
+}
+
+const statuses = [
+  { label: "In Progress", value: "In Progress" },
+  { label: "Closed", value: "Closed" },
+  { label: "Open", value: "Open" },
+];
 
 const FormSchema = z.object({
   description: z
@@ -59,20 +67,17 @@ const FormSchema = z.object({
   }),
 });
 
-export function MeetingItemSheet() {
+export function MeetingItemSheet({
+  previousMeetingId,
+  onItemAdded,
+}: MeetingItemSheetProps & { onItemAdded: () => void }) {
   const meetingItemSheet = useMeetingItemSheet();
-  const [statuses, setStatuses] = useState<StatusType[]>([]);
   const [members, setMembers] = useState<Person[]>([]);
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams();
-  console.log("params", params);
-  const fetchStatus = async () => {
-    await apiClient
-      .get("/status-types")
-      .then((res) => setStatuses(res.data))
-      .catch((error) => console.log("failed to fetched statuses type"));
-  };
+
+  console.log("previousMeetingId", previousMeetingId);
 
   const fetchMembers = async () => {
     await apiClient
@@ -82,7 +87,7 @@ export function MeetingItemSheet() {
   };
 
   useEffect(() => {
-    fetchStatus();
+    // fetchStatus();
     fetchMembers();
   }, []);
 
@@ -99,15 +104,17 @@ export function MeetingItemSheet() {
         .post("meeting-items", {
           description: data.description,
           dueDate: data.dueDate,
-          meetingId: params.id,
+          meetingId: previousMeetingId,
           status: data.status,
           actionRequired: data.actionRequired,
           responsiblePersonId: data.responsiblePersonId,
         })
         .then((res) => {
           toast({
-            description: `${res.data.name} Updated`,
+            description: `Created`,
           });
+          onItemAdded();
+          handleClose();
           router.refresh();
           form.reset();
         });
@@ -119,14 +126,6 @@ export function MeetingItemSheet() {
         action: <ToastAction altText="Try Again">Try again</ToastAction>,
       });
     }
-    // toast({
-    //   title: "You submitted the following values:",
-    //   description: (
-    //     <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-    //       <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-    //     </pre>
-    //   ),
-    // });
   }
 
   const handleClose = () => {
@@ -225,8 +224,9 @@ export function MeetingItemSheet() {
                         )}
                       >
                         {field.value
-                          ? statuses.find((status) => status.id === field.value)
-                              ?.name
+                          ? statuses.find(
+                              (status) => status.value === field.value,
+                            )?.label
                           : "Select Status"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -240,21 +240,21 @@ export function MeetingItemSheet() {
                         <CommandGroup>
                           {statuses.map((status) => (
                             <CommandItem
-                              value={status.name}
-                              key={status.id}
+                              value={status.label}
+                              key={status.value}
                               onSelect={() => {
-                                form.setValue("status", status.id);
+                                form.setValue("status", status.value);
                               }}
                             >
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  status.id === field.value
+                                  status.value === field.value
                                     ? "opacity-100"
                                     : "opacity-0",
                                 )}
                               />
-                              {status.name}
+                              {status.label}
                             </CommandItem>
                           ))}
                         </CommandGroup>

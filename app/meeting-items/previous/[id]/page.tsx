@@ -1,7 +1,7 @@
 "use client";
 import { Heading } from "@/components/Heading";
 import apiClient from "@/lib/apiClient";
-import { useEffect, useState } from "react";
+import {useCallback, useEffect, useState} from "react";
 import { MeetingData } from "@/modals/meeting-items-previous.types";
 import {
   meetingItemColumn,
@@ -17,26 +17,27 @@ export default function MeetingItemPerMeetingPage({
 }) {
   const [data, setData] = useState<MeetingData | undefined>(undefined);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const response = await apiClient.get<MeetingData>(
-        `meeting/${params.id}/previous`,
+          `meeting/${params.id}/previous`,
       );
       setData(response.data);
     } catch (error) {
       console.error("Failed to fetch meeting data:", error);
       // Handle error (e.g., show error message to user)
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   function transformToMeetingItemColumns(
     meetingData: MeetingData | undefined,
   ): MeetingItemColumn[] {
     if (!meetingData) return [];
+
     return meetingData.itemStatuses.map((item) => ({
       description: item.meetingItem.description,
       dueDate: new Date(item.meetingItem.dueDate || ""),
@@ -53,8 +54,18 @@ export default function MeetingItemPerMeetingPage({
     }));
   }
 
-  const transformedData = transformToMeetingItemColumns(data);
+  const handleItemAdded = useCallback(() => {
+    fetchData();
+  }, [fetchData]);
 
+  const MeetingItemSheetWrapper = () => (
+      <MeetingItemSheet
+          previousMeetingId={data?.id ? data.id : ""}
+          onItemAdded={handleItemAdded}
+      />
+  );
+
+  const transformedData = transformToMeetingItemColumns(data);
   return (
     <div className="m-5">
       <div className="mb-5">
@@ -66,7 +77,7 @@ export default function MeetingItemPerMeetingPage({
       <DataTable
         columns={meetingItemColumn}
         data={transformedData}
-        FormSheet={MeetingItemSheet}
+        FormSheet={MeetingItemSheetWrapper}
       />
     </div>
   );
