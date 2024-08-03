@@ -28,12 +28,12 @@ export async function GET(request: Request) {
       ],
     });
 
-    if (itemsByMeetingType.length === 0) {
-      return NextResponse.json(
-        { message: "No items found for this meeting type" },
-        { status: 404 },
-      );
-    }
+    // if (itemsByMeetingType.length === 0) {
+    //   return NextResponse.json(
+    //     { message: "No items found for this meeting type" },
+    //     { status: 404 },
+    //   );
+    // }
 
     return NextResponse.json(itemsByMeetingType);
   } catch (error) {

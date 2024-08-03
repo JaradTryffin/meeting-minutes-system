@@ -50,7 +50,7 @@ async function main() {
       date: new Date("2023-07-15"),
       meetingTypeId: financeType.id,
       minutes: "Budget review for Q3",
-      previousMeetingId: meeting1.id,
+      // previousMeetingId: meeting1.id,
     },
   });
 

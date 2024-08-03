@@ -4308,21 +4308,58 @@ export async function GET(
   }
 }
 
-export async function PUT(
+// export async function PUT(
+//   request: Request,
+//   { params }: { params: { id: string } },
+// ) {
+//   try {
+//     const body = await request.json();
+//     const { status, actionRequired, responsiblePersonId } = body;
+//
+//     const updatedMeetingItemStatus = await prisma.meetingItemStatus.update({
+//       where: { id: params.id },
+//       data: {
+//         status,
+//         actionRequired,
+//         responsiblePersonId,
+//       },
+//       include: {
+//         meeting: true,
+//         meetingItem: true,
+//         responsiblePerson: true,
+//       },
+//     });
+//
+//     return NextResponse.json(updatedMeetingItemStatus);
+//   } catch (error) {
+//     console.error("Failed to update meeting item status:", error);
+//     return NextResponse.json(
+//       { error: "Failed to update meeting item status" },
+//       { status: 500 },
+//     );
+//   }
+// }
+
+export async function PATCH(
   request: Request,
   { params }: { params: { id: string } },
 ) {
   try {
+    console.log("I am here")
     const body = await request.json();
-    const { status, actionRequired, responsiblePersonId } = body;
+    const { status } = body;
+    console.log("body",body)
+
+    if (!status) {
+      return NextResponse.json(
+        { error: "Status is required" },
+        { status: 400 },
+      );
+    }
 
     const updatedMeetingItemStatus = await prisma.meetingItemStatus.update({
       where: { id: params.id },
-      data: {
-        status,
-        actionRequired,
-        responsiblePersonId,
-      },
+      data: { status },
       include: {
         meeting: true,
         meetingItem: true,
@@ -5475,6 +5512,7 @@ export default async function MeetingItemPerMeetingCurrentPage({
         ? new Date(item.meetingItem.completedDate)
         : undefined,
       status: item.status,
+      meetingItemStatus: item.id,
       actionRequired: item.actionRequired,
       responsiblePerson: item.responsiblePerson.name,
       email: item.responsiblePerson.email,
@@ -5556,7 +5594,7 @@ export default async function MeetingItemPage() {
 "use client";
 import { Heading } from "@/components/Heading";
 import apiClient from "@/lib/apiClient";
-import {useCallback, useEffect, useState} from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MeetingData } from "@/modals/meeting-items-previous.types";
 import {
   meetingItemColumn,
@@ -5564,6 +5602,7 @@ import {
 } from "@/util/meetingItem/column";
 import { DataTable } from "@/components/data-table";
 import { MeetingItemSheet } from "@/components/meeting-item/meeting-item-sheet";
+import { useRefreshHook } from "@/hooks/use-refresh";
 
 export default function MeetingItemPerMeetingPage({
   params,
@@ -5571,11 +5610,11 @@ export default function MeetingItemPerMeetingPage({
   params: { id: string };
 }) {
   const [data, setData] = useState<MeetingData | undefined>(undefined);
-
+  const refreshHook = useRefreshHook();
   const fetchData = useCallback(async () => {
     try {
       const response = await apiClient.get<MeetingData>(
-          `meeting/${params.id}/previous`,
+        `meeting/${params.id}/previous`,
       );
       setData(response.data);
     } catch (error) {
@@ -5586,7 +5625,7 @@ export default function MeetingItemPerMeetingPage({
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [refreshHook]);
 
   function transformToMeetingItemColumns(
     meetingData: MeetingData | undefined,
@@ -5600,6 +5639,7 @@ export default function MeetingItemPerMeetingPage({
         ? new Date(item.meetingItem.completedDate)
         : undefined,
       status: item.status,
+      meetingItemStatus: item.id,
       actionRequired: item.actionRequired,
       responsiblePerson: item.responsiblePerson.name,
       email: item.responsiblePerson.email,
@@ -5611,13 +5651,13 @@ export default function MeetingItemPerMeetingPage({
 
   const handleItemAdded = useCallback(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, refreshHook]);
 
   const MeetingItemSheetWrapper = () => (
-      <MeetingItemSheet
-          previousMeetingId={data?.id ? data.id : ""}
-          onItemAdded={handleItemAdded}
-      />
+    <MeetingItemSheet
+      previousMeetingId={data?.id ? data.id : ""}
+      onItemAdded={handleItemAdded}
+    />
   );
 
   const transformedData = transformToMeetingItemColumns(data);
@@ -5924,6 +5964,19 @@ export const usePreviousMeetingId = create<usePreviousMeetingIdStore>(
     reset: () => set({ previousMeetingId: "" }),
   }),
 );
+
+// File: hooks/use-refresh.ts
+import { create } from "zustand";
+
+interface useRefreshStore {
+  refresh: boolean;
+  onRefresh: () => void;
+}
+
+export const useRefreshHook = create<useRefreshStore>((set) => ({
+  refresh: false,
+  onRefresh: () => set({ refresh: true }),
+}));
 
 // File: hooks/use-sheet.ts
 import { create } from "zustand";

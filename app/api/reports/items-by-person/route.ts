@@ -5,7 +5,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const personId = searchParams.get("personId");
-
+console.log("I am gere in persin")
     if (!personId) {
       return NextResponse.json(
         { error: "Person ID is required" },
@@ -27,12 +27,12 @@ export async function GET(request: Request) {
       orderBy: { meetingItem: { dueDate: "asc" } },
     });
 
-    if (itemsByPerson.length === 0) {
-      return NextResponse.json(
-        { message: "No items found for this person" },
-        { status: 404 },
-      );
-    }
+    // if (itemsByPerson.length === 0) {
+    //   return NextResponse.json(
+    //     { message: "No items found for this person" },
+    //     { status: 404 },
+    //   );
+    // }
 
     return NextResponse.json(itemsByPerson);
   } catch (error) {

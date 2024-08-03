@@ -22,12 +22,12 @@ export async function GET(request: Request) {
       orderBy: { meetingItem: { description: "asc" } },
     });
 
-    if (itemsByMeeting.length === 0) {
-      return NextResponse.json(
-        { message: "No items found for this meeting" },
-        { status: 404 },
-      );
-    }
+    // if (itemsByMeeting.length === 0) {
+    //   return NextResponse.json(
+    //     { message: "No items found for this meeting" },
+    //     { status: 404 },
+    //   );
+    // }
 
     return NextResponse.json(itemsByMeeting);
   } catch (error) {
