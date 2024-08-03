@@ -1,6 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/table-core";
+import { Badge } from "@/components/ui/badge";
 
 export interface MeetingItemColumn {
   description: string;
@@ -44,6 +45,15 @@ export const meetingItemColumn: ColumnDef<MeetingItemColumn>[] = [
   {
     accessorKey: "status",
     header: "Status",
+    cell: ({ row }) => {
+      if (row.getValue("status") === "Open") {
+        return <Badge variant="destructive">{row.getValue("status")}</Badge>;
+      } else if (row.getValue("status") === "In Progress") {
+        return <Badge variant="secondary">{row.getValue("status")}</Badge>;
+      } else {
+        return <Badge className="bg-green-600">{row.getValue("status")}</Badge>;
+      }
+    },
   },
   {
     accessorKey: "actionRequired",
@@ -60,6 +70,7 @@ export const meetingItemColumn: ColumnDef<MeetingItemColumn>[] = [
   {
     accessorKey: "meetingNumber",
     header: "Meeting",
+    cell: ({ row }) => <Badge>{row.getValue("meetingNumber")}</Badge>,
   },
   {
     accessorKey: "meetingDate",
