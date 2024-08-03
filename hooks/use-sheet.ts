@@ -23,3 +23,9 @@ export const useMeetingItemSheet = create<useSheetStore>((set) => ({
   onOpen: () => set({ isOpen: true }),
   onClose: () => set({ isOpen: false }),
 }));
+
+export const useCurrentMeetingItemSheet = create<useSheetStore>((set) => ({
+  isOpen: false,
+  onOpen: () => set({ isOpen: true }),
+  onClose: () => set({ isOpen: false }),
+}));

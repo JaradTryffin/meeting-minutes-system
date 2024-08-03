@@ -5,6 +5,7 @@ import {
   MeetingItemColumn,
 } from "@/util/meetingItem/column";
 import { DataTable } from "@/components/data-table";
+import { CurrentMeetingItemSheet } from "@/components/meeting-item/current-meeting-item-sheet";
 
 export default async function MeetingItemPerMeetingCurrentPage({
   params,
@@ -45,6 +46,7 @@ export default async function MeetingItemPerMeetingCurrentPage({
       <DataTable
         columns={meetingItemColumn}
         data={transformMeetingData(meetingItems)}
+        FormSheet={CurrentMeetingItemSheet}
       />
     </div>
   );

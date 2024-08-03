@@ -1,10 +1,14 @@
 "use client";
 import { z } from "zod";
-import { useMeetingItemSheet } from "@/hooks/use-sheet";
-import { useToast } from "@/components/ui/use-toast";
-import {  useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import apiClient from "@/lib/apiClient";
+import { ToastAction } from "@/components/ui/toast";
+import { useParams, useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/use-toast";
+import { useEffect, useState } from "react";
+import { Person } from "@prisma/client";
+import { useCurrentMeetingItemSheet } from "@/hooks/use-sheet";
 import { SheetForm } from "@/components/sheet-form";
 import {
   Form,
@@ -16,19 +20,17 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import apiClient from "@/lib/apiClient";
-import { useEffect, useState } from "react";
-import { Person } from "@prisma/client";
+import { statuses } from "@/constants/statuses";
 import {
   Command,
   CommandEmpty,
@@ -37,12 +39,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ToastAction } from "@/components/ui/toast";
-import { statuses } from "@/constants/statuses";
-
-interface MeetingItemSheetProps {
-  previousMeetingId: string;
-}
 
 const FormSchema = z.object({
   description: z
@@ -62,27 +58,12 @@ const FormSchema = z.object({
   }),
 });
 
-export function MeetingItemSheet({
-  previousMeetingId,
-  onItemAdded,
-}: MeetingItemSheetProps & { onItemAdded: () => void }) {
-  const meetingItemSheet = useMeetingItemSheet();
-  const [members, setMembers] = useState<Person[]>([]);
+export function CurrentMeetingItemSheet() {
+  const params = useParams();
+  const currentMeetingItemSheet = useCurrentMeetingItemSheet();
   const { toast } = useToast();
   const router = useRouter();
-
-  const fetchMembers = async () => {
-    await apiClient
-      .get("/persons")
-      .then((res) => setMembers(res.data))
-      .catch((error) => console.log("failed to fetch memebers"));
-  };
-
-  useEffect(() => {
-    // fetchStatus();
-    fetchMembers();
-  }, []);
-
+  const [members, setMembers] = useState<Person[]>([]);
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -90,13 +71,24 @@ export function MeetingItemSheet({
     },
   });
 
+  const fetchMembers = async () => {
+    await apiClient
+      .get("/persons")
+      .then((res) => setMembers(res.data))
+      .catch((error) => console.log("failed to fetch members"));
+  };
+
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     try {
       await apiClient
         .post("meeting-items", {
           description: data.description,
           dueDate: data.dueDate,
-          meetingId: previousMeetingId,
+          meetingId: params.id,
           status: data.status,
           actionRequired: data.actionRequired,
           responsiblePersonId: data.responsiblePersonId,
@@ -105,8 +97,7 @@ export function MeetingItemSheet({
           toast({
             description: `Created`,
           });
-          onItemAdded();
-          handleClose();
+          // handleClose();
           router.refresh();
           form.reset();
         });
@@ -121,7 +112,7 @@ export function MeetingItemSheet({
   }
 
   const handleClose = () => {
-    meetingItemSheet.onClose();
+    currentMeetingItemSheet.onClose();
     form.reset();
   };
 
@@ -130,8 +121,10 @@ export function MeetingItemSheet({
       triggerButtonText="Add Meeting Item"
       sheetTitle="Meeting Item"
       sheetDescription="Add meeting Item"
-      open={meetingItemSheet.isOpen}
-      setOpen={(open) => (open ? meetingItemSheet.onOpen() : handleClose())}
+      open={currentMeetingItemSheet.isOpen}
+      setOpen={(open) =>
+        open ? currentMeetingItemSheet.onOpen() : handleClose()
+      }
     >
       <Form {...form}>
         <form
