@@ -199,6 +199,234 @@ export function DataTable<TData, TValue>({
   );
 }
 
+// File: components/meeting/new-meeting.tsx
+"use client";
+import { useEffect, useState } from "react";
+import { MeetingType } from "@prisma/client";
+import apiClient from "@/lib/apiClient";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ToastAction } from "@/components/ui/toast";
+import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { useMeetingModal } from "@/hooks/use-sheet";
+
+const FormSchema = z.object({
+  meetingTypeId: z
+    .string({
+      required_error: "Please select a meeting type",
+    })
+    .min(2),
+  date: z.date({
+    required_error: "A Date is required",
+  }),
+  minutes: z.string().optional(),
+});
+
+export function NewMeeting() {
+  const { toast } = useToast();
+  const router = useRouter();
+  const [meetingTypes, setMeetingTypes] = useState<MeetingType[]>([]);
+  const meetingModal = useMeetingModal();
+
+  const form = useForm<z.infer<typeof FormSchema>>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      meetingTypeId: "",
+    },
+  });
+
+  async function onSubmit(data: z.infer<typeof FormSchema>) {
+    try {
+      await apiClient
+        .post("/meeting", {
+          meetingTypeId: data.meetingTypeId,
+          date: data.date,
+          minutes: data.minutes,
+        })
+        .then((res) => {
+          toast({
+            description: `Successfully created meeting`,
+          });
+          router.refresh();
+          meetingModal.onClose();
+        });
+    } catch (error) {
+      toast({
+        title: "Uh oh! Something went wrong.s",
+        variant: "destructive",
+        description: "There was a problem with your request",
+        action: <ToastAction altText="Try Again">Try again</ToastAction>,
+      });
+    }
+  }
+
+  useEffect(() => {
+    apiClient.get("/meeting-types").then((res) => setMeetingTypes(res.data));
+  }, []);
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="meetingTypeId"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Meeting Type</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={cn(
+                        "w-full justify-between",
+                        !field.value && "text-muted-foreground",
+                      )}
+                    >
+                      {field.value
+                        ? meetingTypes.find(
+                            (meetingType) => meetingType.id === field.value,
+                          )?.name
+                        : "Select language"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-[500px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search language..." />
+                    <CommandList>
+                      <CommandEmpty>No language found.</CommandEmpty>
+                      <CommandGroup>
+                        {meetingTypes.map((meetingType) => (
+                          <CommandItem
+                            value={meetingType.name}
+                            key={meetingType.id}
+                            onSelect={() => {
+                              form.setValue("meetingTypeId", meetingType.id);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                meetingType.id === field.value
+                                  ? "opacity-100"
+                                  : "opacity-0",
+                              )}
+                            />
+                            {meetingType.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <FormDescription>
+                This is the language that will be used in the dashboard.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/*  Date*/}
+        <FormField
+          control={form.control}
+          name="date"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Meeting Date</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground",
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    disabled={(date) =>
+                      date < new Date(new Date().setHours(0, 0, 0, 0))
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <FormDescription>Your meeting date.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="minutes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Input placeholder="Budget 2024..." {...field} />
+              </FormControl>
+              <FormDescription>
+                A Short Description about meeting
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit">Create Meeting</Button>
+      </form>
+    </Form>
+  );
+}
+
 // File: components/members/members-sheet.tsx
 "use client";
 
@@ -525,6 +753,10 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { User, LucideIcon, Building } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ReusableDialog } from "@/components/ui/ReusableDialog";
+import { NewMeeting } from "@/components/meeting/new-meeting";
+import { useMeetingModal } from "@/hooks/use-sheet";
 
 interface MenuItem {
   name: string;
@@ -539,6 +771,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ companyName, menuItems }) => {
   const pathname = usePathname();
+  const meetingModel = useMeetingModal();
 
   return (
     <div className="flex h-full min-h-[700px] flex-col justify-between bg-slate-50 p-4">
@@ -564,9 +797,17 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, menuItems }) => {
         </div>
       </div>
       <div className="flex flex-col gap-4">
-        <button className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-10 px-4 bg-[#1980e6] text-slate-50 text-sm font-bold leading-normal tracking-[0.015em]">
-          <span className="truncate">New Meeting</span>
-        </button>
+        <ReusableDialog
+          buttonText="New Meeting"
+          title="Create new meeting."
+          description="create meeting for relevant team"
+          open={meetingModel.isOpen}
+          setOpen={(open) =>
+            open ? meetingModel.onOpen() : meetingModel.onClose()
+          }
+        >
+          <NewMeeting />
+        </ReusableDialog>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3 px-3 py-2">
             <Building size={24} className="text-[#0e141b]" />
@@ -587,6 +828,52 @@ const Sidebar: React.FC<SidebarProps> = ({ companyName, menuItems }) => {
 };
 
 export default Sidebar;
+
+// File: components/ui/ReusableDialog.tsx
+import React, { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+interface ReusableDialogProps {
+  buttonText: string;
+  title: string;
+  description: string;
+  children: ReactNode;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}
+
+export function ReusableDialog({
+  buttonText,
+  title,
+  description,
+  children,
+  open,
+  setOpen,
+}: ReusableDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="cursor-pointer">{buttonText}</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">{children}</div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // File: components/ui/avatar.tsx
 "use client"
@@ -639,6 +926,44 @@ const AvatarFallback = React.forwardRef<
 AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName
 
 export { Avatar, AvatarImage, AvatarFallback }
+
+// File: components/ui/badge.tsx
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+        outline: "text-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return (
+    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+  )
+}
+
+export { Badge, badgeVariants }
 
 // File: components/ui/button.tsx
 import * as React from "react"
@@ -697,6 +1022,355 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button"
 
 export { Button, buttonVariants }
+
+// File: components/ui/calendar.tsx
+"use client"
+
+import * as React from "react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { DayPicker } from "react-day-picker"
+
+import { cn } from "@/lib/utils"
+import { buttonVariants } from "@/components/ui/button"
+
+export type CalendarProps = React.ComponentProps<typeof DayPicker>
+
+function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  ...props
+}: CalendarProps) {
+  return (
+    <DayPicker
+      showOutsideDays={showOutsideDays}
+      className={cn("p-3", className)}
+      classNames={{
+        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+        month: "space-y-4",
+        caption: "flex justify-center pt-1 relative items-center",
+        caption_label: "text-sm font-medium",
+        nav: "space-x-1 flex items-center",
+        nav_button: cn(
+          buttonVariants({ variant: "outline" }),
+          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+        ),
+        nav_button_previous: "absolute left-1",
+        nav_button_next: "absolute right-1",
+        table: "w-full border-collapse space-y-1",
+        head_row: "flex",
+        head_cell:
+          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+        row: "flex w-full mt-2",
+        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+        day: cn(
+          buttonVariants({ variant: "ghost" }),
+          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+        ),
+        day_range_end: "day-range-end",
+        day_selected:
+          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+        day_today: "bg-accent text-accent-foreground",
+        day_outside:
+          "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+        day_disabled: "text-muted-foreground opacity-50",
+        day_range_middle:
+          "aria-selected:bg-accent aria-selected:text-accent-foreground",
+        day_hidden: "invisible",
+        ...classNames,
+      }}
+      components={{
+        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
+        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+      }}
+      {...props}
+    />
+  )
+}
+Calendar.displayName = "Calendar"
+
+export { Calendar }
+
+// File: components/ui/command.tsx
+"use client"
+
+import * as React from "react"
+import { type DialogProps } from "@radix-ui/react-dialog"
+import { Command as CommandPrimitive } from "cmdk"
+import { Search } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+
+const Command = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive>
+>(({ className, ...props }, ref) => (
+  <CommandPrimitive
+    ref={ref}
+    className={cn(
+      "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
+      className
+    )}
+    {...props}
+  />
+))
+Command.displayName = CommandPrimitive.displayName
+
+interface CommandDialogProps extends DialogProps {}
+
+const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
+  return (
+    <Dialog {...props}>
+      <DialogContent className="overflow-hidden p-0 shadow-lg">
+        <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+          {children}
+        </Command>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const CommandInput = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.Input>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
+>(({ className, ...props }, ref) => (
+  <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+    <CommandPrimitive.Input
+      ref={ref}
+      className={cn(
+        "flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  </div>
+))
+
+CommandInput.displayName = CommandPrimitive.Input.displayName
+
+const CommandList = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.List>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.List>
+>(({ className, ...props }, ref) => (
+  <CommandPrimitive.List
+    ref={ref}
+    className={cn("max-h-[300px] overflow-y-auto overflow-x-hidden", className)}
+    {...props}
+  />
+))
+
+CommandList.displayName = CommandPrimitive.List.displayName
+
+const CommandEmpty = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.Empty>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Empty>
+>((props, ref) => (
+  <CommandPrimitive.Empty
+    ref={ref}
+    className="py-6 text-center text-sm"
+    {...props}
+  />
+))
+
+CommandEmpty.displayName = CommandPrimitive.Empty.displayName
+
+const CommandGroup = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.Group>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Group>
+>(({ className, ...props }, ref) => (
+  <CommandPrimitive.Group
+    ref={ref}
+    className={cn(
+      "overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground",
+      className
+    )}
+    {...props}
+  />
+))
+
+CommandGroup.displayName = CommandPrimitive.Group.displayName
+
+const CommandSeparator = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.Separator>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Separator>
+>(({ className, ...props }, ref) => (
+  <CommandPrimitive.Separator
+    ref={ref}
+    className={cn("-mx-1 h-px bg-border", className)}
+    {...props}
+  />
+))
+CommandSeparator.displayName = CommandPrimitive.Separator.displayName
+
+const CommandItem = React.forwardRef<
+  React.ElementRef<typeof CommandPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Item>
+>(({ className, ...props }, ref) => (
+  <CommandPrimitive.Item
+    ref={ref}
+    className={cn(
+      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",
+      className
+    )}
+    {...props}
+  />
+))
+
+CommandItem.displayName = CommandPrimitive.Item.displayName
+
+const CommandShortcut = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement>) => {
+  return (
+    <span
+      className={cn(
+        "ml-auto text-xs tracking-widest text-muted-foreground",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+CommandShortcut.displayName = "CommandShortcut"
+
+export {
+  Command,
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandShortcut,
+  CommandSeparator,
+}
+
+// File: components/ui/dialog.tsx
+"use client"
+
+import * as React from "react"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
+import { X } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+const Dialog = DialogPrimitive.Root
+
+const DialogTrigger = DialogPrimitive.Trigger
+
+const DialogPortal = DialogPrimitive.Portal
+
+const DialogClose = DialogPrimitive.Close
+
+const DialogOverlay = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Overlay
+    ref={ref}
+    className={cn(
+      "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+  />
+))
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
+
+const DialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <DialogPortal>
+    <DialogOverlay />
+    <DialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+        <X className="h-4 w-4" />
+        <span className="sr-only">Close</span>
+      </DialogPrimitive.Close>
+    </DialogPrimitive.Content>
+  </DialogPortal>
+))
+DialogContent.displayName = DialogPrimitive.Content.displayName
+
+const DialogHeader = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col space-y-1.5 text-center sm:text-left",
+      className
+    )}
+    {...props}
+  />
+)
+DialogHeader.displayName = "DialogHeader"
+
+const DialogFooter = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      className
+    )}
+    {...props}
+  />
+)
+DialogFooter.displayName = "DialogFooter"
+
+const DialogTitle = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn(
+      "text-lg font-semibold leading-none tracking-tight",
+      className
+    )}
+    {...props}
+  />
+))
+DialogTitle.displayName = DialogPrimitive.Title.displayName
+
+const DialogDescription = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+DialogDescription.displayName = DialogPrimitive.Description.displayName
+
+export {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogClose,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+}
 
 // File: components/ui/dropdown-menu.tsx
 "use client"
@@ -1502,6 +2176,39 @@ export {
   NavigationMenuIndicator,
   NavigationMenuViewport,
 }
+
+// File: components/ui/popover.tsx
+"use client"
+
+import * as React from "react"
+import * as PopoverPrimitive from "@radix-ui/react-popover"
+
+import { cn } from "@/lib/utils"
+
+const Popover = PopoverPrimitive.Root
+
+const PopoverTrigger = PopoverPrimitive.Trigger
+
+const PopoverContent = React.forwardRef<
+  React.ElementRef<typeof PopoverPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
+>(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
+  <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Content
+      ref={ref}
+      align={align}
+      sideOffset={sideOffset}
+      className={cn(
+        "z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        className
+      )}
+      {...props}
+    />
+  </PopoverPrimitive.Portal>
+))
+PopoverContent.displayName = PopoverPrimitive.Content.displayName
+
+export { Popover, PopoverTrigger, PopoverContent }
 
 // File: components/ui/scroll-area.tsx
 "use client"
@@ -2472,7 +3179,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { meetingTypeId, date } = body;
+    const { meetingTypeId, date,...rest } = body;
 
     if (typeof meetingTypeId !== "string" || !date) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
@@ -2510,6 +3217,7 @@ export async function POST(request: Request) {
         meetingNumber: newMeetingNumber,
         formattedId,
         date: new Date(date),
+        ...rest
       },
       include: { meetingType: true },
     });
@@ -2732,33 +3440,67 @@ export async function GET(
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// export async function GET(
+//   request: Request,
+//   { params }: { params: { id: string } },
+// ) {
+//   try {
+//     const meetingItem = await prisma.meetingItem.findUnique({
+//       where: { id: params.id },
+//       include: {
+//         statuses: { include: { meeting: true, responsiblePerson: true } },
+//       },
+//     });
+//
+//     if (!meetingItem) {
+//       return NextResponse.json(
+//         { error: "Meeting item not found" },
+//         { status: 404 },
+//       );
+//     }
+//
+//     return NextResponse.json(meetingItem);
+//   } catch (error) {
+//     console.error(
+//       `[GET_MEETING_ITEMS_${params.id}]- Failed to fetch meeting item:`,
+//       error,
+//     );
+//     return NextResponse.json(
+//       { error: "Failed to fetch meeting item" },
+//       { status: 500 },
+//     );
+//   }
+// }
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } },
 ) {
   try {
-    const meetingItem = await prisma.meetingItem.findUnique({
-      where: { id: params.id },
+    const meetingItemStatuses = await prisma.meetingItemStatus.findMany({
+      where: { meetingId: params.id },
       include: {
-        statuses: { include: { meeting: true, responsiblePerson: true } },
+        meetingItem: true,
+        responsiblePerson: true,
+        meeting: true,
       },
     });
 
-    if (!meetingItem) {
+    if (meetingItemStatuses.length === 0) {
       return NextResponse.json(
-        { error: "Meeting item not found" },
+        { error: "No meeting item statuses found for this meeting" },
         { status: 404 },
       );
     }
 
-    return NextResponse.json(meetingItem);
+    return NextResponse.json(meetingItemStatuses);
   } catch (error) {
     console.error(
-      `[GET_MEETING_ITEMS_${params.id}]- Failed to fetch meeting item:`,
+      `[GET_MEETING_ITEM_STATUSES_${params.id}]- Failed to fetch meeting item statuses:`,
       error,
     );
     return NextResponse.json(
-      { error: "Failed to fetch meeting item" },
+      { error: "Failed to fetch meeting item statuses" },
       { status: 500 },
     );
   }
@@ -3612,7 +4354,13 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/sidebar";
-import { LayoutPanelTop, Video, UserRound, ClipboardPlus } from "lucide-react";
+import {
+  LayoutPanelTop,
+  Video,
+  UserRound,
+  ClipboardPlus,
+  ListTodo,
+} from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -3626,6 +4374,11 @@ export const metadata: Metadata = {
 const menuItems = [
   { name: "Overview", icon: <LayoutPanelTop size={24} />, href: "/" },
   { name: "Meeting List", icon: <Video size={24} />, href: "/meeting-list" },
+  {
+    name: "Meeting Items",
+    icon: <ListTodo size={24} />,
+    href: "/meeting-items",
+  },
   { name: "Member List", icon: <UserRound size={24} />, href: "/members-list" },
   { name: "Reports", icon: <ClipboardPlus size={24} />, href: "/reports" },
 ];
@@ -3650,6 +4403,102 @@ export default function RootLayout({
   );
 }
 
+// File: app/meeting-items/[id]/page.tsx
+import { Heading } from "@/components/Heading";
+
+export default async function MeetingItemPerMeetingPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  return (
+    <div className="m-5">
+      <div className="mb-5">
+        <Heading
+          title="Meeting Items xxxxxx"
+          description="Manage meeting items"
+        />
+      </div>
+      <h1>{params.id}</h1>
+    </div>
+  );
+}
+
+// File: app/meeting-items/page.tsx
+import { Heading } from "@/components/Heading";
+import prisma from "@/lib/prisma";
+import { MeetingItem } from "@prisma/client";
+import {
+  meetingItemColumn,
+  MeetingItemColumn,
+} from "@/util/meetingItem/column";
+import { DataTable } from "@/components/data-table";
+
+export default async function MeetingItemPage() {
+  const meetingItems = await prisma.meetingItem.findMany({
+    include: {
+      statuses: { include: { meeting: true, responsiblePerson: true } },
+    },
+  });
+
+  function transformData(data: any[]): MeetingItemColumn[] {
+    return data.map((item) => {
+      const status = item.statuses[0];
+      const meeting = status.meeting;
+      const responsiblePerson = status.responsiblePerson;
+
+      return {
+        description: item.description,
+        dueDate: new Date(item.dueDate),
+        completedDate: item.completedDate
+          ? new Date(item.completedDate)
+          : undefined,
+        status: status.status,
+        actionRequired: status.actionRequired,
+        responsiblePerson: responsiblePerson.name,
+        email: responsiblePerson.email,
+        meetingNumber: meeting.formattedId,
+        meetingDate: new Date(meeting.date),
+        meetingMinutes: meeting.minutes,
+      };
+    });
+  }
+
+  const formattedData = transformData(meetingItems);
+
+  return (
+    <div className="m-5">
+      <div className="mb-5">
+        <Heading title="Meeting Items" description="Manage meeting items" />
+      </div>
+
+      <DataTable columns={meetingItemColumn} data={formattedData} />
+    </div>
+  );
+}
+
+// File: app/meeting-list/page.tsx
+import { Heading } from "@/components/Heading";
+import prisma from "@/lib/prisma";
+import { DataTable } from "@/components/data-table";
+import { meetingColumns } from "@/util/meetings/columns";
+
+export default async function MeetingListPage() {
+  const meetings = await prisma.meeting.findMany({
+    include: { meetingType: true },
+  });
+
+  return (
+    <div className="m-5">
+      <div className="mb-5">
+        <Heading title="Meetings" description="Manage meeets" />
+      </div>
+
+      <DataTable columns={meetingColumns} data={meetings} />
+    </div>
+  );
+}
+
 // File: app/members-list/page.tsx
 import { Heading } from "@/components/Heading";
 import { DataTable } from "@/components/data-table";
@@ -3657,7 +4506,7 @@ import { memberColumns } from "@/util/members/columns";
 import prisma from "@/lib/prisma";
 import { MemberSheet } from "@/components/members/members-sheet";
 
-export default async function Home() {
+export default async function MemberListPage() {
   const members = await prisma.person.findMany();
 
   return (
@@ -3913,5 +4762,9 @@ export const useMemberSheet = create<useSheetStore>((set) => ({
   onClose: () => set({ isOpen: false }),
 }));
 
-
+export const useMeetingModal = create<useSheetStore>((set) => ({
+  isOpen: false,
+  onOpen: () => set({ isOpen: true }),
+  onClose: () => set({ isOpen: false }),
+}));
 

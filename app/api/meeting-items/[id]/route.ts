@@ -1,33 +1,67 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// export async function GET(
+//   request: Request,
+//   { params }: { params: { id: string } },
+// ) {
+//   try {
+//     const meetingItem = await prisma.meetingItem.findUnique({
+//       where: { id: params.id },
+//       include: {
+//         statuses: { include: { meeting: true, responsiblePerson: true } },
+//       },
+//     });
+//
+//     if (!meetingItem) {
+//       return NextResponse.json(
+//         { error: "Meeting item not found" },
+//         { status: 404 },
+//       );
+//     }
+//
+//     return NextResponse.json(meetingItem);
+//   } catch (error) {
+//     console.error(
+//       `[GET_MEETING_ITEMS_${params.id}]- Failed to fetch meeting item:`,
+//       error,
+//     );
+//     return NextResponse.json(
+//       { error: "Failed to fetch meeting item" },
+//       { status: 500 },
+//     );
+//   }
+// }
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } },
 ) {
   try {
-    const meetingItem = await prisma.meetingItem.findUnique({
-      where: { id: params.id },
+    const meetingItemStatuses = await prisma.meetingItemStatus.findMany({
+      where: { meetingId: params.id },
       include: {
-        statuses: { include: { meeting: true, responsiblePerson: true } },
+        meetingItem: true,
+        responsiblePerson: true,
+        meeting: true,
       },
     });
 
-    if (!meetingItem) {
+    if (meetingItemStatuses.length === 0) {
       return NextResponse.json(
-        { error: "Meeting item not found" },
+        { error: "No meeting item statuses found for this meeting" },
         { status: 404 },
       );
     }
 
-    return NextResponse.json(meetingItem);
+    return NextResponse.json(meetingItemStatuses);
   } catch (error) {
     console.error(
-      `[GET_MEETING_ITEMS_${params.id}]- Failed to fetch meeting item:`,
+      `[GET_MEETING_ITEM_STATUSES_${params.id}]- Failed to fetch meeting item statuses:`,
       error,
     );
     return NextResponse.json(
-      { error: "Failed to fetch meeting item" },
+      { error: "Failed to fetch meeting item statuses" },
       { status: 500 },
     );
   }

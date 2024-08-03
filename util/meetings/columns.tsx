@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
 
 export const meetingColumns: ColumnDef<Meeting>[] = [
   {
@@ -38,6 +39,9 @@ export const meetingColumns: ColumnDef<Meeting>[] = [
     id: "actions",
     cell: ({ row }) => {
       const member = row.original;
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const router = useRouter();
+
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -53,7 +57,11 @@ export const meetingColumns: ColumnDef<Meeting>[] = [
               Copy Meeting ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Review Previous Meeting</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => router.push(`/meeting-items/${member.id}`)}
+            >
+              Review Previous Meeting
+            </DropdownMenuItem>
             <DropdownMenuItem>Update Meeting Items</DropdownMenuItem>
             <DropdownMenuItem>Add New Meeting Items</DropdownMenuItem>
           </DropdownMenuContent>

@@ -7,13 +7,15 @@ export async function GET(
 ) {
   try {
     const meetingItemHistory = await prisma.meetingItemStatus.findMany({
-      where: { meetingItemId: params.id },
+      where: { meetingId: params.id },
       include: {
         meeting: true,
         responsiblePerson: true,
       },
       orderBy: { meeting: { date: "asc" } },
     });
+
+    console.log("history",meetingItemHistory)
 
     if (meetingItemHistory.length === 0) {
       return NextResponse.json(
