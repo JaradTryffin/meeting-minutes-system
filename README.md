@@ -47,7 +47,8 @@ The Meeting Minutes System is a comprehensive web application designed to stream
    ```
    This command initializes the SQLite database and applies all migrations.
 
-4. **Seed the database**
+4. **Seed the database (Optional)**
+- When you run npx prisma migrate dev, the db should have data
    ```
    npx prisma db seed
    ```
@@ -144,7 +145,6 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Acknowledgments
 
-- Shadcn UI for the component library
 - Recharts for charting capabilities
 - The Prisma team for their excellent ORM
 
